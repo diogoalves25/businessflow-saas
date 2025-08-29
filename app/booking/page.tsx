@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Calendar, Clock, Sparkles, Wrench, Wind, Smile, Scissors, Activity, BookOpen, Car, Trees, Utensils } from 'lucide-react';
 import Link from 'next/link';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { useBusiness } from '@/src/contexts/BusinessContext';
+import { useServicesAPI } from '@/src/hooks/useServicesAPI';
+import { useRouter } from 'next/navigation';
 
 interface BookingFormData {
   serviceType: string;
@@ -52,15 +54,44 @@ export default function BookingPage() {
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string>('');
   const [selectedFrequency, setSelectedFrequency] = useState<string>('once');
+  const [submitting, setSubmitting] = useState(false);
+  const [demoOrganization, setDemoOrganization] = useState<any>(null);
   
+  const router = useRouter();
   const { businessName, businessType, template } = useBusiness();
   const { register, handleSubmit, formState: { errors } } = useForm<BookingFormData>();
+  
+  // For demo purposes, we'll use the first organization from our seed data
+  const organizationId = demoOrganization?.id;
+  const { services: apiServices, loading, error } = useServicesAPI(organizationId);
 
   // Get the appropriate icon for this business type
   const BusinessIcon = serviceIcons[businessType] || Sparkles;
 
-  // Add IDs to services for selection
-  const services = template.services.map((service, index) => ({
+  // Fetch the demo organization on mount
+  useEffect(() => {
+    const fetchDemoOrg = async () => {
+      try {
+        // For demo, we'll fetch the SparkleClean Pro organization
+        const response = await fetch('/api/organizations?demo=true');
+        if (response.ok) {
+          const data = await response.json();
+          setDemoOrganization(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch demo org:', err);
+      }
+    };
+    fetchDemoOrg();
+  }, []);
+
+  // Use API services if available, otherwise fall back to template services
+  const services = apiServices.length > 0 ? apiServices.map(service => ({
+    id: service.id,
+    name: service.name,
+    price: service.basePrice,
+    duration: service.duration,
+  })) : template.services.map((service, index) => ({
     id: `service-${index}`,
     name: service.name,
     price: service.basePrice,
@@ -75,10 +106,52 @@ export default function BookingPage() {
       label: minutes >= 60 ? `${Math.floor(minutes / 60)} hour${minutes >= 120 ? 's' : ''}${minutes % 60 ? ` ${minutes % 60} min` : ''}` : `${minutes} min`
     }));
 
-  const onSubmit: SubmitHandler<BookingFormData> = (data) => {
-    console.log('Booking submitted:', data);
-    // In a real app, this would submit to an API
-    alert('Booking submitted successfully! We\'ll contact you soon to confirm.');
+  const onSubmit: SubmitHandler<BookingFormData> = async (data) => {
+    setSubmitting(true);
+    
+    try {
+      const selectedServiceObj = services.find(s => s.id === selectedService);
+      
+      const bookingData = {
+        serviceId: selectedService,
+        organizationId: organizationId || 'demo',
+        date: data.date,
+        time: data.time,
+        duration: data.duration,
+        frequency: selectedFrequency,
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        zipCode: data.zipCode,
+        specialInstructions: data.specialInstructions,
+        customerEmail: data.email,
+        customerFirstName: data.firstName,
+        customerLastName: data.lastName,
+        customerPhone: data.phone
+      };
+
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Booking confirmed! Your booking ID is ${result.id}. We'll contact you soon to confirm.`);
+        router.push('/');
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error || 'Failed to create booking'}`);
+      }
+    } catch (error) {
+      console.error('Booking submission error:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const selectedServiceData = services.find(s => s.id === selectedService);
@@ -484,12 +557,13 @@ export default function BookingPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 text-white py-3 rounded-lg font-semibold transition"
+                  disabled={submitting}
+                  className="flex-1 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: template.color }}
-                  onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(90%)'}
-                  onMouseLeave={(e) => e.currentTarget.style.filter = 'brightness(100%)'}
+                  onMouseEnter={(e) => !submitting && (e.currentTarget.style.filter = 'brightness(90%)')}
+                  onMouseLeave={(e) => !submitting && (e.currentTarget.style.filter = 'brightness(100%)')}
                 >
-                  Book Now
+                  {submitting ? 'Processing...' : 'Book Now'}
                 </button>
               </div>
             </div>

@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Check, DollarSign, Users, Zap, Calendar, BarChart3, Mail } from 'lucide-react';
+import { ArrowLeft, Check, DollarSign, Users, Zap, Calendar, BarChart3, Mail, Sparkles, Wrench, Wind, Smile, Scissors, Activity, BookOpen, Car, Trees, Utensils } from 'lucide-react';
 import Link from 'next/link';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
+import { businessTemplates } from '@/src/lib/business-templates';
 
 interface BusinessSignupData {
   businessName: string;
+  businessType: string;
   ownerFirstName: string;
   ownerLastName: string;
   email: string;
@@ -15,6 +17,10 @@ interface BusinessSignupData {
   password: string;
   confirmPassword: string;
   plan: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
   agreeToTerms: boolean;
 }
 
@@ -83,13 +89,64 @@ export default function BusinessSignup() {
 
   const password = watch('password');
 
-  const onSubmit: SubmitHandler<BusinessSignupData> = (data) => {
-    console.log('Business signup:', data);
-    // In a real app, this would create the business account
-    // For demo, redirect to admin dashboard
-    setTimeout(() => {
-      router.push('/admin');
-    }, 1500);
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedBusinessType, setSelectedBusinessType] = useState('CLEANING');
+  
+  const businessTypeIcons: Record<string, React.ComponentType<{ className?: string; size?: number }>> = {
+    CLEANING: Sparkles,
+    PLUMBING: Wrench,
+    HVAC: Wind,
+    DENTAL: Smile,
+    BEAUTY: Scissors,
+    FITNESS: Activity,
+    TUTORING: BookOpen,
+    AUTO_REPAIR: Car,
+    LANDSCAPING: Trees,
+    CATERING: Utensils,
+  };
+
+  const onSubmit: SubmitHandler<BusinessSignupData> = async (data) => {
+    setSubmitting(true);
+    
+    try {
+      const signupData = {
+        businessName: data.businessName,
+        businessType: selectedBusinessType,
+        email: data.email,
+        password: data.password,
+        firstName: data.ownerFirstName,
+        lastName: data.ownerLastName,
+        phone: data.phone,
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        zipCode: data.zipCode
+      };
+
+      const response = await fetch('/api/organizations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(signupData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Welcome to BusinessFlow! Your business "${result.organization.name}" has been created. Redirecting to admin dashboard...`);
+        setTimeout(() => {
+          router.push('/admin');
+        }, 2000);
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error || 'Failed to create business'}`);
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const features = [
@@ -163,6 +220,35 @@ export default function BusinessSignup() {
             {step === 1 && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Business Information</h2>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-4">
+                    Select Your Business Type *
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {Object.entries(businessTypeIcons).map(([type, Icon]) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setSelectedBusinessType(type)}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          selectedBusinessType === type
+                            ? 'border-blue-600 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <Icon className={`h-8 w-8 mx-auto mb-2 ${
+                          selectedBusinessType === type ? 'text-blue-600' : 'text-gray-400'
+                        }`} />
+                        <div className={`text-sm font-medium ${
+                          selectedBusinessType === type ? 'text-blue-900' : 'text-gray-900'
+                        }`}>
+                          {type.charAt(0) + type.slice(1).toLowerCase().replace('_', ' ')}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -371,6 +457,57 @@ export default function BusinessSignup() {
                   )}
                 </div>
 
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Business Address (Optional)</h3>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Street Address
+                  </label>
+                  <input
+                    {...register('address')}
+                    type="text"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    placeholder="123 Main Street"
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      City
+                    </label>
+                    <input
+                      {...register('city')}
+                      type="text"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      placeholder="San Francisco"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      State
+                    </label>
+                    <input
+                      {...register('state')}
+                      type="text"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      placeholder="CA"
+                      maxLength={2}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ZIP Code
+                    </label>
+                    <input
+                      {...register('zipCode')}
+                      type="text"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      placeholder="94102"
+                    />
+                  </div>
+                </div>
+
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="font-medium text-gray-900 mb-2">Your Selected Plan:</h3>
                   <div className="flex items-center justify-between">
@@ -411,9 +548,10 @@ export default function BusinessSignup() {
                   </button>
                   <button
                     type="submit"
-                    className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-lg"
+                    disabled={submitting}
+                    className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Start Free Trial
+                    {submitting ? 'Creating Your Account...' : 'Start Free Trial'}
                   </button>
                 </div>
               </div>

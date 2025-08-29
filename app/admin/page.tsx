@@ -6,42 +6,20 @@ import {
   Star,
   TrendingUp,
   Users,
+  Loader2,
 } from 'lucide-react';
-
-// Mock data for dashboard
-const stats = {
-  totalBookings: 1247,
-  monthlyRevenue: 45680,
-  activeTechnicians: 24,
-  satisfactionScore: 4.8,
-};
-
-const recentBookings = [
-  { id: 1, customer: 'Sarah Johnson', service: 'Regular Cleaning', date: '2024-01-15', time: '9:00 AM', status: 'Completed', amount: 80 },
-  { id: 2, customer: 'Mike Williams', service: 'Deep Cleaning', date: '2024-01-15', time: '2:00 PM', status: 'In Progress', amount: 150 },
-  { id: 3, customer: 'Emily Davis', service: 'Move-in Cleaning', date: '2024-01-16', time: '10:00 AM', status: 'Scheduled', amount: 200 },
-  { id: 4, customer: 'James Brown', service: 'Office Cleaning', date: '2024-01-16', time: '4:00 PM', status: 'Scheduled', amount: 120 },
-  { id: 5, customer: 'Lisa Anderson', service: 'Regular Cleaning', date: '2024-01-17', time: '11:00 AM', status: 'Scheduled', amount: 80 },
-];
-
-const topTechnicians = [
-  { id: 1, name: 'Maria Garcia', jobs: 145, rating: 4.9, revenue: 11600 },
-  { id: 2, name: 'John Smith', jobs: 132, rating: 4.8, revenue: 10560 },
-  { id: 3, name: 'Anna Lee', jobs: 128, rating: 4.9, revenue: 10240 },
-  { id: 4, name: 'Robert Chen', jobs: 118, rating: 4.7, revenue: 9440 },
-];
-
-// Mock chart data
-const revenueData = [
-  { month: 'Jan', revenue: 42000 },
-  { month: 'Feb', revenue: 45000 },
-  { month: 'Mar', revenue: 43500 },
-  { month: 'Apr', revenue: 48000 },
-  { month: 'May', revenue: 51000 },
-  { month: 'Jun', revenue: 45680 },
-];
+import { useDashboardData } from '@/src/hooks/useDashboardData';
 
 export default function AdminDashboard() {
+  const { stats, recentBookings, topTechnicians, revenueData, loading } = useDashboardData();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
   return (
     <>
       {/* Stats cards */}
