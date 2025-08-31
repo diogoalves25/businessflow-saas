@@ -7,7 +7,7 @@ import { NotificationService } from '@/src/lib/notifications';
 // POST: Create new booking
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // const session = await getServerSession(authOptions); // TODO: Implement auth check
     const body = await request.json();
     
     const {
@@ -111,13 +111,13 @@ export async function POST(request: NextRequest) {
           price: booking.finalPrice
         }
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to send booking confirmation:', error);
       // Don't fail the booking creation if notification fails
     }
 
     return NextResponse.json(booking);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Booking creation error:', error);
     return NextResponse.json(
       { error: 'Failed to create booking' },
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
     const date = searchParams.get('date');
 
     // Build where clause
-    const where: any = {};
+    const where: Record<string, any> = {};
     if (organizationId) where.organizationId = organizationId;
     if (customerId) where.customerId = customerId;
     if (technicianId) where.technicianId = technicianId;
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(bookings);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Bookings fetch error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch bookings' },

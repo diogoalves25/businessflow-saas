@@ -48,7 +48,7 @@ export function useDashboardData(organizationId?: string) {
         setLoading(true);
 
         // For demo mode or when no org ID, fetch first organization
-        const orgParam = organizationId || 'demo=true';
+        // const orgParam = organizationId || 'demo=true';
         
         // Fetch organization data
         const orgResponse = await fetch(`/api/organizations?${organizationId ? `id=${organizationId}` : 'demo=true'}`);
@@ -59,18 +59,18 @@ export function useDashboardData(organizationId?: string) {
         const bookings = await bookingsResponse.json();
         
         // Calculate stats
-        const completedBookings = bookings.filter((b: any) => b.status === 'completed');
+        const completedBookings = bookings.filter((b: {status: string}) => b.status === 'completed');
         const monthlyRevenue = completedBookings
-          .filter((b: any) => {
+          .filter((b: {date: string}) => {
             const bookingDate = new Date(b.date);
             const currentMonth = new Date().getMonth();
             return bookingDate.getMonth() === currentMonth;
           })
-          .reduce((sum: number, b: any) => sum + b.finalPrice, 0);
+          .reduce((sum: number, b: {finalPrice: number}) => sum + b.finalPrice, 0);
           
         const avgRating = completedBookings
-          .filter((b: any) => b.rating)
-          .reduce((sum: number, b: any, _: number, arr: any[]) => 
+          .filter((b: {rating?: number}) => b.rating)
+          .reduce((sum: number, b: {rating?: number}, _: number, arr: {rating?: number}[]) => 
             sum + b.rating / arr.length, 0) || 4.5;
 
         setStats({
@@ -81,7 +81,15 @@ export function useDashboardData(organizationId?: string) {
         });
 
         // Format recent bookings
-        const formattedBookings = bookings.slice(0, 5).map((b: any) => ({
+        const formattedBookings = bookings.slice(0, 5).map((b: {
+          id: string;
+          customer?: {firstName?: string; lastName?: string};
+          service?: {name?: string};
+          date: string;
+          time: string;
+          status: string;
+          finalPrice: number;
+        }) => ({
           id: b.id,
           customer: `${b.customer?.firstName || 'Guest'} ${b.customer?.lastName || ''}`.trim(),
           service: b.service?.name || 'Service',
@@ -94,7 +102,12 @@ export function useDashboardData(organizationId?: string) {
 
         // Calculate technician performance
         const technicianStats = new Map();
-        bookings.forEach((b: any) => {
+        bookings.forEach((b: {
+          technician?: {id: string; firstName?: string; lastName?: string};
+          status: string;
+          rating?: number;
+          finalPrice: number;
+        }) => {
           if (b.technician) {
             const techId = b.technician.id;
             if (!technicianStats.has(techId)) {
@@ -118,11 +131,17 @@ export function useDashboardData(organizationId?: string) {
         });
 
         const technicianArray = Array.from(technicianStats.values())
-          .map((tech: any) => ({
+          .map((tech: {
+            name: string;
+            jobs: number;
+            revenue: number;
+            totalRating: number;
+            ratingCount: number;
+          }) => ({
             ...tech,
             rating: tech.ratingCount > 0 ? Math.round((tech.totalRating / tech.ratingCount) * 10) / 10 : 4.5,
           }))
-          .sort((a: any, b: any) => b.revenue - a.revenue)
+          .sort((a: {revenue: number}, b: {revenue: number}) => b.revenue - a.revenue)
           .slice(0, 4);
         
         setTopTechnicians(technicianArray);

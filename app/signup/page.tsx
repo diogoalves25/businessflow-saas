@@ -5,7 +5,7 @@ import { ArrowLeft, Check, DollarSign, Users, Zap, Calendar, BarChart3, Mail, Sp
 import Link from 'next/link';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
-import { businessTemplates } from '@/src/lib/business-templates';
+// import { businessTemplates } from '@/src/lib/business-templates';
 import { loadStripe } from '@stripe/stripe-js';
 import { toast } from 'sonner';
 

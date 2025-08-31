@@ -55,7 +55,7 @@ export default function BookingPage() {
   const [selectedService, setSelectedService] = useState<string>('');
   const [selectedFrequency, setSelectedFrequency] = useState<string>('once');
   const [submitting, setSubmitting] = useState(false);
-  const [demoOrganization, setDemoOrganization] = useState<any>(null);
+  const [demoOrganization, setDemoOrganization] = useState<{id: string} | null>(null);
   
   const router = useRouter();
   const { businessName, businessType, template } = useBusiness();
@@ -63,7 +63,7 @@ export default function BookingPage() {
   
   // For demo purposes, we'll use the first organization from our seed data
   const organizationId = demoOrganization?.id;
-  const { services: apiServices, loading, error } = useServicesAPI(organizationId);
+  const { services: apiServices } = useServicesAPI(organizationId);
 
   // Get the appropriate icon for this business type
   const BusinessIcon = serviceIcons[businessType] || Sparkles;
@@ -110,7 +110,7 @@ export default function BookingPage() {
     setSubmitting(true);
     
     try {
-      const selectedServiceObj = services.find(s => s.id === selectedService);
+      // const selectedServiceObj = services.find(s => s.id === selectedService);
       
       const bookingData = {
         serviceId: selectedService,
