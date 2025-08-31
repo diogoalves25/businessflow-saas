@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { businessTemplates } from '@/src/lib/business-templates';
+import { NotificationService } from '@/src/lib/notifications';
 
 // POST: Create new organization during signup
 export async function POST(request: NextRequest) {
@@ -82,6 +83,18 @@ export async function POST(request: NextRequest) {
 
       return { organization, user };
     });
+
+    // Send welcome email to new organization
+    try {
+      await NotificationService.sendWelcomeEmail(email, {
+        name: businessName,
+        businessType,
+        plan: 'basic' // New signups start on basic plan
+      });
+    } catch (error) {
+      // Don't fail signup if email fails
+      console.error('Failed to send welcome email:', error);
+    }
 
     return NextResponse.json({
       success: true,

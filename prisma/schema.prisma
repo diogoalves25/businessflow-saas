@@ -9,8 +9,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum BusinessType {
@@ -27,22 +28,40 @@ enum BusinessType {
 }
 
 model Organization {
-  id            String       @id @default(cuid())
-  name          String
-  businessType  BusinessType
-  businessName  String
-  email         String       @unique
-  phone         String?
-  address       String?
-  city          String?
-  state         String?
-  zipCode       String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id                   String       @id @default(cuid())
+  name                 String
+  businessType         BusinessType
+  businessName         String
+  email                String       @unique
+  phone                String?
+  address              String?
+  city                 String?
+  state                String?
+  zipCode              String?
+  stripeCustomerId     String?      @unique
+  stripeSubscriptionId String?      @unique
+  stripePriceId        String?      // which plan they're on
+  subscriptionStatus   String?      @default("trialing") // trialing, active, canceled, past_due
+  trialEndsAt          DateTime?    @default(dbgenerated("NOW() + INTERVAL '14 days'"))
+  subscriptionEndsAt   DateTime?
+  notificationPreferences Json?   @default("{}")
+  aiTokensUsed         Int          @default(0)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
   
-  users         User[]
-  services      Service[]
-  bookings      Booking[]
+  users                User[]
+  services             Service[]
+  bookings             Booking[]
+  chatMessages         ChatMessage[]
+  plaidConnections     PlaidConnection[]
+  payrollRuns          PayrollRun[]
+  marketingCampaigns   MarketingCampaign[]
+  marketingContacts    MarketingContact[]
+  adAccounts           AdAccount[]
+  expenses             Expense[]
+  expenseCategories    ExpenseCategory[]
+  budgets              Budget[]
+  whiteLabelSettings   WhiteLabelSettings?
 }
 
 model User {
@@ -54,12 +73,14 @@ model User {
   phone          String?
   role           String   @default("customer") // customer, technician, admin
   organizationId String?
+  hourlyRate     Float?   // For technicians
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   
   organization   Organization? @relation(fields: [organizationId], references: [id])
   bookings       Booking[]
   technicianBookings Booking[] @relation("TechnicianBookings")
+  payrollPayments PayrollPayment[]
 }
 
 model Service {
@@ -105,6 +126,10 @@ model Booking {
   rating              Int?
   review              String?
   
+  // Notification tracking
+  confirmationSentAt  DateTime?
+  reminderSentAt      DateTime?
+  
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   
@@ -120,4 +145,243 @@ model Revenue {
   year      Int
   amount    Float
   createdAt DateTime @default(now())
+}
+
+model ChatMessage {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  sessionId      String   @default("default")
+  role           String   // user, assistant, system
+  content        String   @db.Text
+  tokenCount     Int      @default(0)
+  createdAt      DateTime @default(now())
+  
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  
+  @@index([organizationId, sessionId, createdAt])
+}
+
+model PlaidConnection {
+  id              String   @id @default(cuid())
+  organizationId  String
+  accessToken     String   // Encrypted
+  itemId          String
+  institutionName String
+  accountName     String
+  accountMask     String   // Last 4 digits
+  accountType     String
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id])
+}
+
+model PayrollRun {
+  id              String   @id @default(cuid())
+  organizationId  String
+  periodStart     DateTime
+  periodEnd       DateTime
+  totalAmount     Float
+  status          String   @default("draft") // draft, processing, completed, failed
+  processedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  payments        PayrollPayment[]
+}
+
+model PayrollPayment {
+  id              String   @id @default(cuid())
+  payrollRunId    String
+  userId          String   // Technician
+  hoursWorked     Float
+  hourlyRate      Float
+  grossAmount     Float
+  netAmount       Float
+  taxWithholding  Float    @default(0)
+  status          String   @default("pending") // pending, sent, failed
+  plaidTransferId String?
+  createdAt       DateTime @default(now())
+  
+  payrollRun      PayrollRun @relation(fields: [payrollRunId], references: [id])
+  user            User @relation(fields: [userId], references: [id])
+}
+
+model MarketingCampaign {
+  id              String   @id @default(cuid())
+  organizationId  String
+  name            String
+  type            String   // email, sms, both
+  status          String   // draft, scheduled, active, completed
+  targetAudience  Json     // segmentation rules
+  content         Json     // email/sms templates
+  scheduledFor    DateTime?
+  sentAt          DateTime?
+  stats           Json?    // opens, clicks, conversions
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  activities      CampaignActivity[]
+}
+
+model MarketingContact {
+  id              String   @id @default(cuid())
+  organizationId  String
+  email           String
+  phone           String?
+  firstName       String?
+  lastName        String?
+  tags            String[] // for segmentation
+  lastBooking     DateTime?
+  totalSpent      Float    @default(0)
+  subscribed      Boolean  @default(true)
+  emailOptIn      Boolean  @default(true)
+  smsOptIn        Boolean  @default(true)
+  source          String?  // booking, import, manual
+  customFields    Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  activities      CampaignActivity[]
+  preferences     ContactPreference[]
+
+  @@unique([organizationId, email])
+}
+
+model CampaignActivity {
+  id              String   @id @default(cuid())
+  campaignId      String
+  contactId       String
+  type            String   // sent, opened, clicked, converted, unsubscribed
+  metadata        Json?    // link clicked, conversion value, etc
+  createdAt       DateTime @default(now())
+  
+  campaign        MarketingCampaign @relation(fields: [campaignId], references: [id])
+  contact         MarketingContact  @relation(fields: [contactId], references: [id])
+}
+
+model ContactPreference {
+  id              String   @id @default(cuid())
+  contactId       String
+  channel         String   // email, sms
+  frequency       String   // immediate, daily, weekly, monthly
+  categories      String[] // promotions, updates, reminders
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  contact         MarketingContact @relation(fields: [contactId], references: [id])
+}
+
+model AdAccount {
+  id              String   @id @default(cuid())
+  organizationId  String
+  platform        String   // facebook, google
+  accountId       String   // Platform-specific ID
+  accountName     String
+  accessToken     String   // Encrypted
+  refreshToken    String?  // For Google
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  campaigns       AdCampaign[]
+}
+
+model AdCampaign {
+  id              String   @id @default(cuid())
+  adAccountId     String
+  platformId      String   // Facebook/Google campaign ID
+  name            String
+  status          String   // active, paused, completed
+  budget          Float
+  spent           Float    @default(0)
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
+  conversions     Int      @default(0)
+  startDate       DateTime
+  endDate         DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  adAccount       AdAccount @relation(fields: [adAccountId], references: [id])
+}
+
+model Expense {
+  id              String   @id @default(cuid())
+  organizationId  String
+  category        String   // supplies, fuel, advertising, payroll, etc.
+  amount          Float
+  description     String
+  vendor          String?
+  date            DateTime
+  receiptUrl      String?  // Uploaded receipt
+  recurring       Boolean  @default(false)
+  recurringPeriod String?  // monthly, weekly
+  taxDeductible   Boolean  @default(true)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  
+  @@index([organizationId, date])
+  @@index([organizationId, category])
+}
+
+model ExpenseCategory {
+  id              String   @id @default(cuid())
+  organizationId  String
+  name            String
+  icon            String?
+  color           String?
+  isDefault       Boolean  @default(false)
+  taxDeductible   Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  
+  @@unique([organizationId, name])
+}
+
+model Budget {
+  id              String   @id @default(cuid())
+  organizationId  String
+  category        String
+  amount          Float
+  period          String   // monthly, quarterly, yearly
+  startDate       DateTime
+  endDate         DateTime?
+  alertThreshold  Float    @default(0.8) // Alert at 80% by default
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  
+  @@unique([organizationId, category, startDate])
+}
+
+model WhiteLabelSettings {
+  id                String   @id @default(cuid())
+  organizationId    String   @unique
+  customDomain      String?  @unique
+  brandName         String
+  logoUrl           String?
+  faviconUrl        String?
+  primaryColor      String   @default("#0066FF")
+  secondaryColor    String   @default("#F3F4F6")
+  customCSS         String?  @db.Text
+  emailFromName     String?
+  emailFromAddress  String?
+  removeBusinessFlowBranding Boolean @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  organization      Organization @relation(fields: [organizationId], references: [id])
 }

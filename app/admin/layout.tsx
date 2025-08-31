@@ -13,8 +13,13 @@ import {
   DollarSign,
   Mail,
   Receipt,
+  CreditCard,
+  Palette,
 } from 'lucide-react';
 import { useBusiness } from '@/src/contexts/BusinessContext';
+import { SubscriptionBanner } from '@/src/components/subscription-banner';
+import { useWhiteLabel } from '@/lib/white-label/theme-provider';
+import { BrandedLogo } from '@/src/components/white-label/BrandedLogo';
 
 export default function AdminLayout({
   children,
@@ -25,6 +30,7 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { businessName, template } = useBusiness();
+  const { settings } = useWhiteLabel();
 
   // Check if business type is selected
   useEffect(() => {
@@ -42,6 +48,8 @@ export default function AdminLayout({
     { id: 'payroll', name: 'Payroll', icon: DollarSign, path: '/admin/payroll' },
     { id: 'marketing', name: 'Marketing', icon: Mail, path: '/admin/marketing' },
     { id: 'expenses', name: 'Expenses', icon: Receipt, path: '/admin/expenses' },
+    { id: 'billing', name: 'Billing', icon: CreditCard, path: '/pricing' },
+    { id: 'branding', name: 'Branding', icon: Palette, path: '/admin/branding' },
     { id: 'settings', name: 'Settings', icon: Settings, path: '/admin/settings' },
   ];
 
@@ -52,7 +60,7 @@ export default function AdminLayout({
         <div className="fixed inset-0 bg-black opacity-50" onClick={() => setSidebarOpen(false)}></div>
         <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg flex flex-col">
           <div className="flex items-center justify-between p-4 border-b">
-            <h1 className="text-xl font-bold text-blue-600">{businessName || 'BusinessFlow'}</h1>
+            <BrandedLogo width={180} height={50} />
             <button onClick={() => setSidebarOpen(false)}>
               <X size={24} />
             </button>
@@ -88,7 +96,7 @@ export default function AdminLayout({
       <div className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 lg:bg-white lg:shadow-lg">
         <div className="flex-shrink-0 p-4 border-b">
           <div>
-            <h1 className="text-xl font-bold text-blue-600">{businessName || 'BusinessFlow'}</h1>
+            <BrandedLogo width={180} height={50} />
             <p className="text-xs text-gray-500">All {sidebarItems.length} menu items</p>
           </div>
         </div>
@@ -126,6 +134,9 @@ export default function AdminLayout({
 
       {/* Main content */}
       <div className="lg:ml-64">
+        {/* Subscription Banner */}
+        <SubscriptionBanner />
+        
         {/* Top bar */}
         <div className="bg-white shadow-sm">
           <div className="flex items-center justify-between p-4">

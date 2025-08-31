@@ -1,47 +1,75 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, Bot, User } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Crown } from 'lucide-react';
+import { useSubscription } from '@/src/hooks/useSubscription';
+import { toast } from 'sonner';
 
 interface Message {
-  id: number;
+  id: string;
   text: string;
   sender: 'bot' | 'user';
   timestamp: Date;
 }
 
-// Predefined responses for common questions
-const botResponses: { [key: string]: string } = {
-  'pricing': 'Our pricing starts at $80 for regular cleaning, $150 for deep cleaning, and $200 for move-in/move-out cleaning. We also offer subscription packages: Starter ($29.99/mo), Growth ($59.99/mo), and Premium ($99.99/mo) for businesses.',
-  'services': 'We offer: Regular Cleaning (weekly/bi-weekly/monthly), Deep Cleaning, Move-in/Move-out Cleaning, Office Cleaning, and Post-construction Cleaning. All services include eco-friendly products and satisfaction guarantee!',
-  'booking': 'Booking is easy! You can book online through our website, call us at (555) 100-1000, or use our mobile app. We usually have availability within 24-48 hours.',
-  'areas': 'We currently serve San Francisco, Oakland, San Jose, and surrounding Bay Area cities. Check our service area map on the website for specific neighborhoods.',
-  'guarantee': 'We offer a 100% satisfaction guarantee! If you&apos;re not happy with our service, we&apos;ll come back and re-clean for free within 24 hours.',
-  'supplies': 'We bring all necessary cleaning supplies and equipment! We use eco-friendly, non-toxic products. If you have specific product preferences, just let us know.',
-  'duration': 'Cleaning duration depends on the size and condition: Studio/1BR: 1-2 hours, 2BR: 2-3 hours, 3BR+: 3-4 hours. Deep cleaning takes about 50% longer.',
-  'payment': 'We accept all major credit cards, debit cards, ACH bank transfers, and digital wallets (Apple Pay, Google Pay). Payment is due after service completion.',
-  'cancellation': 'You can cancel or reschedule up to 24 hours before your appointment without any fees. Cancellations within 24 hours may incur a 50% charge.',
-  'insurance': 'Yes! All our technicians are fully insured and bonded. We carry $2 million in general liability insurance and workers&apos; compensation.',
-  'eco': 'We use eco-friendly, biodegradable cleaning products that are safe for children and pets. All our products are Green Seal certified.',
-  'staff': 'Our technicians are carefully vetted with background checks, fully trained, insured, and have an average of 3+ years experience. Many have been with us for over 5 years!',
-  'frequency': 'We recommend weekly or bi-weekly cleaning for most homes. Monthly cleaning works well for smaller spaces or less busy households.',
-  'pets': 'We love pets! Our technicians are pet-friendly and use pet-safe products. Please let us know about your pets when booking.',
-  'tips': 'Tipping is appreciated but not required. The industry standard is 15-20% for exceptional service, but it&apos;s entirely at your discretion.',
-};
-
 export default function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      text: 'Hi! I&apos;m CleanBot, your virtual cleaning assistant. How can I help you today? You can ask me about pricing, services, booking, or anything else!',
-      sender: 'bot',
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [sessionId] = useState(() => `session-${Date.now()}`);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { canAccess } = useSubscription();
+  const isPremium = canAccess('hasAIChat');
+
+  // Load chat history on mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!isPremium) {
+        setMessages([{
+          id: '1',
+          text: 'Hi! I\'m here to help. AI-powered chat is available with our Premium plan. You can still ask basic questions!',
+          sender: 'bot',
+          timestamp: new Date(),
+        }]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/ai/chat?sessionId=${sessionId}`);
+        if (response.ok) {
+          const data = await response.json();
+          const historyMessages = data.messages.map((msg: any) => ({
+            id: msg.id,
+            text: msg.content,
+            sender: msg.role === 'user' ? 'user' : 'bot',
+            timestamp: new Date(msg.createdAt),
+          }));
+          
+          if (historyMessages.length === 0) {
+            setMessages([{
+              id: '1',
+              text: 'Hi! I\'m your AI assistant. How can I help you today? You can ask me about appointments, services, pricing, or anything else!',
+              sender: 'bot',
+              timestamp: new Date(),
+            }]);
+          } else {
+            setMessages(historyMessages);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load chat history:', error);
+        setMessages([{
+          id: '1',
+          text: 'Hi! I\'m your AI assistant. How can I help you today?',
+          sender: 'bot',
+          timestamp: new Date(),
+        }]);
+      }
+    };
+
+    loadHistory();
+  }, [sessionId, isPremium]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -51,74 +79,114 @@ export default function ChatbotWidget() {
     scrollToBottom();
   }, [messages]);
 
-  const findBestResponse = (input: string): string => {
-    const lowerInput = input.toLowerCase();
-    
-    // Check for keywords in the input
-    for (const [key, response] of Object.entries(botResponses)) {
-      if (lowerInput.includes(key) || 
-          (key === 'pricing' && (lowerInput.includes('price') || lowerInput.includes('cost') || lowerInput.includes('how much'))) ||
-          (key === 'services' && (lowerInput.includes('service') || lowerInput.includes('offer') || lowerInput.includes('what do you'))) ||
-          (key === 'booking' && (lowerInput.includes('book') || lowerInput.includes('schedule') || lowerInput.includes('appointment'))) ||
-          (key === 'areas' && (lowerInput.includes('area') || lowerInput.includes('location') || lowerInput.includes('where'))) ||
-          (key === 'guarantee' && (lowerInput.includes('guarantee') || lowerInput.includes('satisfied') || lowerInput.includes('happy'))) ||
-          (key === 'supplies' && (lowerInput.includes('supplies') || lowerInput.includes('products') || lowerInput.includes('bring'))) ||
-          (key === 'duration' && (lowerInput.includes('how long') || lowerInput.includes('duration') || lowerInput.includes('time'))) ||
-          (key === 'payment' && (lowerInput.includes('pay') || lowerInput.includes('credit') || lowerInput.includes('card'))) ||
-          (key === 'cancellation' && (lowerInput.includes('cancel') || lowerInput.includes('reschedule'))) ||
-          (key === 'insurance' && (lowerInput.includes('insur') || lowerInput.includes('bond'))) ||
-          (key === 'eco' && (lowerInput.includes('eco') || lowerInput.includes('green') || lowerInput.includes('safe') || lowerInput.includes('toxic'))) ||
-          (key === 'staff' && (lowerInput.includes('technician') || lowerInput.includes('staff') || lowerInput.includes('employee') || lowerInput.includes('background'))) ||
-          (key === 'frequency' && (lowerInput.includes('often') || lowerInput.includes('frequency') || lowerInput.includes('regular'))) ||
-          (key === 'pets' && (lowerInput.includes('pet') || lowerInput.includes('dog') || lowerInput.includes('cat') || lowerInput.includes('animal'))) ||
-          (key === 'tips' && (lowerInput.includes('tip') || lowerInput.includes('gratuity')))) {
-        return response;
-      }
-    }
-    
-    // Default responses for common greetings and unknown queries
-    if (lowerInput.includes('hello') || lowerInput.includes('hi') || lowerInput.includes('hey')) {
-      return 'Hello! How can I help you with your cleaning needs today?';
-    }
-    
-    if (lowerInput.includes('thank') || lowerInput.includes('thanks')) {
-      return 'You&apos;re welcome! Is there anything else I can help you with?';
-    }
-    
-    if (lowerInput.includes('bye') || lowerInput.includes('goodbye')) {
-      return 'Thank you for chatting with us! Have a sparkling clean day! ✨';
-    }
-    
-    // Default response for unrecognized queries
-    return 'I&apos;m not sure about that specific question, but I can help you with information about our services, pricing, booking, service areas, and more. You can also call us at (555) 100-1000 for personalized assistance!';
-  };
-
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (inputValue.trim() === '') return;
 
     const userMessage: Message = {
-      id: messages.length + 1,
+      id: `msg-${Date.now()}`,
       text: inputValue,
       sender: 'user',
       timestamp: new Date(),
     };
 
-    setMessages([...messages, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate bot typing and response
-    setTimeout(() => {
-      const botResponse = findBestResponse(inputValue);
-      const botMessage: Message = {
-        id: messages.length + 2,
-        text: botResponse,
+    try {
+      if (!isPremium) {
+        // Basic response for non-premium users
+        setTimeout(() => {
+          const botMessage: Message = {
+            id: `msg-${Date.now() + 1}`,
+            text: 'To get personalized AI-powered responses, please upgrade to our Premium plan. For now, you can visit our website or call us at (555) 100-1000 for assistance!',
+            sender: 'bot',
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, botMessage]);
+          setIsTyping(false);
+        }, 1000);
+        return;
+      }
+
+      // AI-powered response for premium users
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: messages.concat(userMessage).slice(-10).map(msg => ({
+            role: msg.sender === 'user' ? 'user' : 'assistant',
+            content: msg.text,
+          })),
+          sessionId,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to get response');
+      }
+
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedText = '';
+
+      if (reader) {
+        const botMessage: Message = {
+          id: `msg-${Date.now() + 1}`,
+          text: '',
+          sender: 'bot',
+          timestamp: new Date(),
+        };
+
+        setMessages(prev => [...prev, botMessage]);
+        setIsTyping(false);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+              
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.text) {
+                  accumulatedText += parsed.text;
+                  setMessages(prev => 
+                    prev.map(msg => 
+                      msg.id === botMessage.id 
+                        ? { ...msg, text: accumulatedText }
+                        : msg
+                    )
+                  );
+                }
+              } catch (e) {
+                // Ignore parse errors
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorMessage: Message = {
+        id: `msg-${Date.now() + 1}`,
+        text: error instanceof Error ? error.message : 'Sorry, I encountered an error. Please try again.',
         sender: 'bot',
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, botMessage]);
+      setMessages(prev => [...prev, errorMessage]);
       setIsTyping(false);
-    }, 1000);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -131,7 +199,7 @@ export default function ChatbotWidget() {
   const quickQuestions = [
     'What are your prices?',
     'What services do you offer?',
-    'How do I book?',
+    'How do I book an appointment?',
     'What areas do you serve?',
   ];
 
@@ -160,8 +228,13 @@ export default function ChatbotWidget() {
               <Bot size={20} />
             </div>
             <div>
-              <h3 className="font-semibold">CleanBot Assistant</h3>
-              <p className="text-xs opacity-90">Always here to help!</p>
+              <h3 className="font-semibold flex items-center gap-2">
+                AI Assistant
+                {isPremium && <Crown size={16} className="text-yellow-300" />}
+              </h3>
+              <p className="text-xs opacity-90">
+                {isPremium ? 'Powered by GPT-4' : 'Upgrade for AI responses'}
+              </p>
             </div>
           </div>
           <button
@@ -202,7 +275,7 @@ export default function ChatbotWidget() {
                       : 'bg-gray-100 text-gray-900'
                   }`}
                 >
-                  <p className="text-sm">{message.text}</p>
+                  <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                   <p className="text-xs opacity-70 mt-1">
                     {message.timestamp.toLocaleTimeString([], {
                       hour: '2-digit',
@@ -253,6 +326,15 @@ export default function ChatbotWidget() {
           </div>
         )}
 
+        {/* Premium Upgrade Prompt */}
+        {!isPremium && (
+          <div className="mx-4 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-xs text-amber-800">
+              🌟 Upgrade to Premium for AI-powered responses with GPT-4!
+            </p>
+          </div>
+        )}
+
         {/* Input */}
         <div className="p-4 border-t">
           <div className="flex space-x-2">
@@ -261,7 +343,7 @@ export default function ChatbotWidget() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Type your message..."
+              placeholder={isPremium ? "Ask me anything..." : "Type your message..."}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
             />
             <button

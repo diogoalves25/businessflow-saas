@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
+import { NotificationService } from '@/src/lib/notifications';
 
 // POST: Create new booking
 export async function POST(request: NextRequest) {
@@ -84,9 +85,36 @@ export async function POST(request: NextRequest) {
       include: {
         service: true,
         customer: true,
-        technician: true
+        technician: true,
+        organization: true
       }
     });
+
+    // Send confirmation notifications
+    try {
+      await NotificationService.sendBookingConfirmation(
+        {
+          organizationId,
+          to: {
+            email: customer.email,
+            phone: customer.phone || undefined
+          }
+        },
+        {
+          id: booking.id,
+          serviceName: booking.service.name,
+          customerName: `${customer.firstName} ${customer.lastName}`,
+          scheduledDate: booking.date,
+          address: `${booking.address}, ${booking.city}, ${booking.state} ${booking.zipCode}`,
+          technicianName: booking.technician ? `${booking.technician.firstName} ${booking.technician.lastName}` : undefined,
+          notes: booking.specialInstructions || undefined,
+          price: booking.finalPrice
+        }
+      );
+    } catch (error) {
+      console.error('Failed to send booking confirmation:', error);
+      // Don't fail the booking creation if notification fails
+    }
 
     return NextResponse.json(booking);
   } catch (error) {
@@ -202,8 +230,35 @@ export async function DELETE(request: NextRequest) {
     // Instead of deleting, update status to cancelled
     const booking = await prisma.booking.update({
       where: { id },
-      data: { status: 'cancelled' }
+      data: { status: 'cancelled' },
+      include: {
+        service: true,
+        customer: true,
+        organization: true
+      }
     });
+
+    // Send cancellation notification
+    try {
+      await NotificationService.sendBookingCancellation(
+        {
+          organizationId: booking.organizationId,
+          to: {
+            email: booking.customer.email,
+            phone: booking.customer.phone || undefined
+          }
+        },
+        {
+          id: booking.id,
+          serviceName: booking.service.name,
+          customerName: `${booking.customer.firstName} ${booking.customer.lastName}`,
+          scheduledDate: booking.date,
+          address: `${booking.address}, ${booking.city}, ${booking.state} ${booking.zipCode}`,
+        }
+      );
+    } catch (error) {
+      console.error('Failed to send cancellation notification:', error);
+    }
 
     return NextResponse.json({ success: true, booking });
   } catch (error) {

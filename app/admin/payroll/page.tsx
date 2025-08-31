@@ -1,671 +1,517 @@
 'use client';
 
-import { useState } from 'react';
-import { 
-  DollarSign, Calendar, Download, CreditCard, 
-  FileText, CheckCircle,
-  Percent, Calculator, BanknoteIcon
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, Plus, DollarSign, Users, Calendar, Building, AlertCircle, Check } from 'lucide-react';
+import { format } from 'date-fns';
+import { usePlaidLink } from 'react-plaid-link';
+import { useFeatureAccess } from '@/src/hooks/useFeatureAccess';
+import { formatCurrency } from '@/src/lib/utils';
 
-// Mock payroll data
-const payrollData = {
-  currentPeriod: {
-    startDate: '2024-01-01',
-    endDate: '2024-01-15',
-    status: 'pending',
-    totalGrossPay: 28450.00,
-    totalDeductions: 7112.50,
-    totalNetPay: 21337.50,
-    processDate: '2024-01-16',
-  },
-  employees: [
-    {
-      id: 1,
-      name: 'Maria Garcia',
-      role: 'Senior Technician',
-      department: 'Residential',
-      hoursWorked: 80,
-      regularHours: 80,
-      overtimeHours: 0,
-      hourlyRate: 25,
-      regularPay: 2000,
-      overtimePay: 0,
-      bonuses: 200,
-      grossPay: 2200,
-      federalTax: 330,
-      stateTax: 176,
-      socialSecurity: 136.40,
-      medicare: 31.90,
-      healthInsurance: 125,
-      retirement401k: 110,
-      totalDeductions: 909.30,
-      netPay: 1290.70,
-      payMethod: 'Direct Deposit',
-      bankAccount: '****4567',
-      ytdGross: 52800,
-      ytdNet: 39600,
-    },
-    {
-      id: 2,
-      name: 'John Smith',
-      role: 'Team Lead',
-      department: 'Commercial',
-      hoursWorked: 85,
-      regularHours: 80,
-      overtimeHours: 5,
-      hourlyRate: 28,
-      regularPay: 2240,
-      overtimePay: 210,
-      bonuses: 150,
-      grossPay: 2600,
-      federalTax: 390,
-      stateTax: 208,
-      socialSecurity: 161.20,
-      medicare: 37.70,
-      healthInsurance: 125,
-      retirement401k: 130,
-      totalDeductions: 1051.90,
-      netPay: 1548.10,
-      payMethod: 'Direct Deposit',
-      bankAccount: '****8901',
-      ytdGross: 62400,
-      ytdNet: 46800,
-    },
-    {
-      id: 3,
-      name: 'Anna Lee',
-      role: 'Technician',
-      department: 'Residential',
-      hoursWorked: 72,
-      regularHours: 72,
-      overtimeHours: 0,
-      hourlyRate: 22,
-      regularPay: 1584,
-      overtimePay: 0,
-      bonuses: 100,
-      grossPay: 1684,
-      federalTax: 252.60,
-      stateTax: 134.72,
-      socialSecurity: 104.40,
-      medicare: 24.42,
-      healthInsurance: 125,
-      retirement401k: 84.20,
-      totalDeductions: 725.34,
-      netPay: 958.66,
-      payMethod: 'Direct Deposit',
-      bankAccount: '****2345',
-      ytdGross: 40416,
-      ytdNet: 30312,
-    },
-    {
-      id: 4,
-      name: 'Robert Chen',
-      role: 'Part-time Technician',
-      department: 'Commercial',
-      hoursWorked: 40,
-      regularHours: 40,
-      overtimeHours: 0,
-      hourlyRate: 20,
-      regularPay: 800,
-      overtimePay: 0,
-      bonuses: 0,
-      grossPay: 800,
-      federalTax: 96,
-      stateTax: 64,
-      socialSecurity: 49.60,
-      medicare: 11.60,
-      healthInsurance: 0,
-      retirement401k: 40,
-      totalDeductions: 261.20,
-      netPay: 538.80,
-      payMethod: 'Paper Check',
-      bankAccount: 'N/A',
-      ytdGross: 19200,
-      ytdNet: 14400,
-    },
-    {
-      id: 5,
-      name: 'Sofia Rodriguez',
-      role: 'Technician',
-      department: 'Residential',
-      hoursWorked: 76,
-      regularHours: 76,
-      overtimeHours: 0,
-      hourlyRate: 23,
-      regularPay: 1748,
-      overtimePay: 0,
-      bonuses: 150,
-      grossPay: 1898,
-      federalTax: 284.70,
-      stateTax: 151.84,
-      socialSecurity: 117.68,
-      medicare: 27.52,
-      healthInsurance: 125,
-      retirement401k: 94.90,
-      totalDeductions: 801.64,
-      netPay: 1096.36,
-      payMethod: 'Direct Deposit',
-      bankAccount: '****6789',
-      ytdGross: 45552,
-      ytdNet: 34164,
-    },
-  ],
-  taxRates: {
-    federalTax: 0.15,
-    stateTax: 0.08,
-    socialSecurity: 0.062,
-    medicare: 0.0145,
-    unemployment: 0.06,
-  },
-  payHistory: [
-    { period: 'Dec 16-31, 2023', grossPay: 27800, netPay: 20850, status: 'paid', processDate: '2024-01-02' },
-    { period: 'Dec 1-15, 2023', grossPay: 28200, netPay: 21150, status: 'paid', processDate: '2023-12-16' },
-    { period: 'Nov 16-30, 2023', grossPay: 27500, netPay: 20625, status: 'paid', processDate: '2023-12-01' },
-    { period: 'Nov 1-15, 2023', grossPay: 27000, netPay: 20250, status: 'paid', processDate: '2023-11-16' },
-  ],
-  upcomingPayroll: {
-    nextPayDate: '2024-01-30',
-    estimatedAmount: 28900,
-    employeeCount: 24,
-  },
-};
+interface BankAccount {
+  id: string;
+  name: string;
+  mask: string;
+  type: string;
+  subtype: string;
+  balance: number;
+  available: number;
+}
+
+interface BankConnection {
+  connectionId: string;
+  institutionName: string;
+  accounts: BankAccount[];
+}
+
+interface PayrollCalculation {
+  userId: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  hoursWorked: number;
+  hourlyRate: number;
+  grossAmount: number;
+  taxWithholding: number;
+  netAmount: number;
+  tips: number;
+  bonus: number;
+}
+
+interface PayrollPeriod {
+  start: string;
+  end: string;
+}
 
 export default function PayrollPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'employees' | 'history' | 'settings'>('overview');
-  const [showPayStub, setShowPayStub] = useState<number | null>(null);
+  const router = useRouter();
+  const { canAccess } = useFeatureAccess();
+  const [loading, setLoading] = useState(true);
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [connections, setConnections] = useState<BankConnection[]>([]);
+  const [calculations, setCalculations] = useState<PayrollCalculation[]>([]);
+  const [currentPeriod, setCurrentPeriod] = useState<PayrollPeriod | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const [payrollHistory, setPayrollHistory] = useState<any[]>([]);
+
+  // Check Premium access
+  useEffect(() => {
+    if (!canAccess('hasPayroll')) {
+      router.push('/admin/settings?upgrade=true');
+    }
+  }, [canAccess, router]);
+
+  // Fetch initial data
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      await Promise.all([
+        fetchBankAccounts(),
+        fetchPayrollCalculations(),
+        fetchPayrollHistory(),
+      ]);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchBankAccounts = async () => {
+    try {
+      const response = await fetch('/api/plaid/accounts');
+      if (response.ok) {
+        const data = await response.json();
+        setConnections(data.connections || []);
+        
+        // Auto-select first checking account
+        if (data.connections.length > 0 && !selectedAccount) {
+          const firstChecking = data.connections[0].accounts.find(
+            (acc: BankAccount) => acc.subtype === 'checking'
+          );
+          if (firstChecking) {
+            setSelectedAccount(`${data.connections[0].connectionId}:${firstChecking.id}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+    }
+  };
+
+  const fetchPayrollCalculations = async () => {
+    try {
+      const response = await fetch('/api/payroll/calculate');
+      if (response.ok) {
+        const data = await response.json();
+        setCalculations(data.calculations || []);
+        setCurrentPeriod(data.period);
+      }
+    } catch (error) {
+      console.error('Error fetching calculations:', error);
+    }
+  };
+
+  const fetchPayrollHistory = async () => {
+    try {
+      const response = await fetch('/api/payroll/history');
+      if (response.ok) {
+        const data = await response.json();
+        setPayrollHistory(data.history || []);
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+    }
+  };
+
+  const createLinkToken = async () => {
+    try {
+      const response = await fetch('/api/plaid/create-link-token', {
+        method: 'POST',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setLinkToken(data.link_token);
+      }
+    } catch (error) {
+      console.error('Error creating link token:', error);
+    }
+  };
+
+  const { open, ready } = usePlaidLink({
+    token: linkToken,
+    onSuccess: async (public_token, metadata) => {
+      try {
+        const response = await fetch('/api/plaid/exchange-public-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            public_token,
+            institution: metadata.institution,
+            accounts: metadata.accounts,
+          }),
+        });
+
+        if (response.ok) {
+          await fetchBankAccounts();
+        }
+      } catch (error) {
+        console.error('Error exchanging token:', error);
+      }
+    },
+  });
+
+  const processPayroll = async () => {
+    if (!selectedAccount || calculations.length === 0) return;
+
+    setProcessing(true);
+    try {
+      const response = await fetch('/api/payroll/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: selectedAccount,
+          periodStart: currentPeriod?.start,
+          periodEnd: currentPeriod?.end,
+          calculations,
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh data
+        await fetchData();
+        // Show success message
+        alert('Payroll processed successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to process payroll');
+      }
+    } catch (error) {
+      console.error('Error processing payroll:', error);
+      alert('Failed to process payroll');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const disconnectAccount = async (connectionId: string) => {
+    if (!confirm('Are you sure you want to disconnect this bank account?')) return;
+
+    try {
+      const response = await fetch('/api/plaid/accounts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connectionId }),
+      });
+
+      if (response.ok) {
+        await fetchBankAccounts();
+      }
+    } catch (error) {
+      console.error('Error disconnecting account:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  const totalGross = calculations.reduce((sum, calc) => sum + calc.grossAmount, 0);
+  const totalTax = calculations.reduce((sum, calc) => sum + calc.taxWithholding, 0);
+  const totalNet = calculations.reduce((sum, calc) => sum + calc.netAmount, 0);
+  const totalHours = calculations.reduce((sum, calc) => sum + calc.hoursWorked, 0);
 
   return (
-    <div>
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Payroll Management</h1>
-        <div className="flex space-x-4">
-          <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 flex items-center">
-            <FileText className="w-4 h-4 mr-2" />
-            Reports
-          </button>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
-            <Calculator className="w-4 h-4 mr-2" />
-            Run Payroll
-          </button>
-        </div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Payroll Management</h1>
+        <p className="text-muted-foreground">
+          Automate payroll processing with Plaid integration
+        </p>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="border-b">
-          <nav className="flex space-x-8 px-6">
-            {(['overview', 'employees', 'history', 'settings'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm capitalize ${
-                  activeTab === tab
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </div>
+      <Tabs defaultValue="process" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="process">Process Payroll</TabsTrigger>
+          <TabsTrigger value="accounts">Bank Accounts</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+        </TabsList>
 
-      {activeTab === 'overview' && (
-        <>
-          {/* Current Period Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Gross Payroll</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ${payrollData.currentPeriod.totalGrossPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <DollarSign className="w-10 h-10 text-green-600" />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Deductions</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ${payrollData.currentPeriod.totalDeductions.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <Percent className="w-10 h-10 text-red-600" />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Net Payroll</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ${payrollData.currentPeriod.totalNetPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <BanknoteIcon className="w-10 h-10 text-blue-600" />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Process Date</p>
-                  <p className="text-2xl font-bold text-gray-900">{payrollData.currentPeriod.processDate}</p>
-                </div>
-                <Calendar className="w-10 h-10 text-purple-600" />
-              </div>
-            </div>
-          </div>
-
-          {/* Current Period Summary */}
-          <div className="bg-white rounded-lg shadow mb-8">
-            <div className="p-6 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Current Period: {payrollData.currentPeriod.startDate} to {payrollData.currentPeriod.endDate}
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Employee
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Hours
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Regular Pay
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      OT Pay
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Bonuses
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Gross Pay
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Deductions
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Net Pay
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {payrollData.employees.map((employee) => (
-                    <tr key={employee.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-                          <div className="text-sm text-gray-500">{employee.role}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{employee.hoursWorked}h</div>
-                        {employee.overtimeHours > 0 && (
-                          <div className="text-xs text-orange-600">+{employee.overtimeHours}h OT</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${employee.regularPay.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${employee.overtimePay.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${employee.bonuses.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${employee.grossPay.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
-                        -${employee.totalDeductions.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                        ${employee.netPay.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button 
-                          onClick={() => setShowPayStub(employee.id)}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
-                        >
-                          Pay Stub
-                        </button>
-                        <button className="text-gray-600 hover:text-gray-900">Edit</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Upcoming Payroll */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Payroll</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Next Pay Date</p>
-                <p className="text-lg font-semibold text-gray-900">{payrollData.upcomingPayroll.nextPayDate}</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Estimated Amount</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  ${payrollData.upcomingPayroll.estimatedAmount.toLocaleString()}
+        <TabsContent value="process" className="space-y-4">
+          {/* Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalHours.toFixed(1)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {currentPeriod && `${format(new Date(currentPeriod.start), 'MMM d')} - ${format(new Date(currentPeriod.end), 'MMM d')}`}
                 </p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Active Employees</p>
-                <p className="text-lg font-semibold text-gray-900">{payrollData.upcomingPayroll.employeeCount}</p>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+              </CardContent>
+            </Card>
 
-      {activeTab === 'employees' && (
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b">
-            <h3 className="text-lg font-semibold text-gray-900">Employee Payment Settings</h3>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Gross Pay</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(totalGross)}</div>
+                <p className="text-xs text-muted-foreground">Before taxes</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tax Withholding</CardTitle>
+                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(totalTax)}</div>
+                <p className="text-xs text-muted-foreground">Federal + State + FICA</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Net Pay</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(totalNet)}</div>
+                <p className="text-xs text-muted-foreground">{calculations.length} employees</p>
+              </CardContent>
+            </Card>
           </div>
-          <div className="divide-y">
-            {payrollData.employees.map((employee) => (
-              <div key={employee.id} className="p-6">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h4 className="text-lg font-medium text-gray-900">{employee.name}</h4>
-                    <p className="text-sm text-gray-500">{employee.role} - {employee.department}</p>
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+
+          {/* Bank Account Selection */}
+          {connections.length === 0 ? (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Connect a bank account to process payroll
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment Account</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <select
+                  value={selectedAccount || ''}
+                  onChange={(e) => setSelectedAccount(e.target.value)}
+                  className="w-full p-2 border rounded-md"
+                >
+                  <option value="">Select an account</option>
+                  {connections.map((conn) =>
+                    conn.accounts.map((acc) => (
+                      <option key={acc.id} value={`${conn.connectionId}:${acc.id}`}>
+                        {conn.institutionName} - {acc.name} (...{acc.mask}) - {formatCurrency(acc.available)}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Employee Calculations */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Employee Payroll Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {calculations.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">
+                    No payroll to process for this period
+                  </p>
+                ) : (
+                  calculations.map((calc) => (
+                    <div key={calc.userId} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
-                        <p className="text-sm font-medium text-gray-700">Pay Method</p>
-                        <div className="flex items-center mt-1">
-                          <CreditCard className="w-4 h-4 mr-2 text-gray-400" />
-                          <span className="text-sm text-gray-900">{employee.payMethod}</span>
+                        <p className="font-medium">{calc.user.name}</p>
+                        <p className="text-sm text-muted-foreground">{calc.user.email}</p>
+                        <div className="flex gap-4 mt-1 text-sm">
+                          <span>{calc.hoursWorked} hours @ {formatCurrency(calc.hourlyRate)}/hr</span>
+                          {calc.tips > 0 && <span>+ {formatCurrency(calc.tips)} tips</span>}
                         </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">Bank Account</p>
-                        <p className="text-sm text-gray-900">{employee.bankAccount}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">Hourly Rate</p>
-                        <p className="text-sm text-gray-900">${employee.hourlyRate}/hr</p>
+                      <div className="text-right">
+                        <p className="font-semibold">{formatCurrency(calc.netAmount)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Gross: {formatCurrency(calc.grossAmount)} - Tax: {formatCurrency(calc.taxWithholding)}
+                        </p>
                       </div>
                     </div>
-                  </div>
-                  <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-                    Edit
-                  </button>
-                </div>
+                  ))
+                )}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </CardContent>
+          </Card>
 
-      {activeTab === 'history' && (
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b">
-            <h3 className="text-lg font-semibold text-gray-900">Payroll History</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pay Period
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Gross Payroll
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Net Payroll
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Process Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {payrollData.payHistory.map((payroll, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {payroll.period}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${payroll.grossPay.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${payroll.netPay.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {payroll.processDate}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        {payroll.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button className="text-blue-600 hover:text-blue-900 mr-3">Download</button>
-                      <button className="text-gray-600 hover:text-gray-900">View Details</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'settings' && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Payroll Settings</h3>
-          <div className="space-y-6">
-            <div>
-              <h4 className="font-medium text-gray-900 mb-4">Tax Rates</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(payrollData.taxRates).map(([key, value]) => (
-                  <div key={key}>
-                    <label className="block text-sm font-medium text-gray-700 capitalize">
-                      {key.replace(/([A-Z])/g, ' $1').trim()}
-                    </label>
-                    <div className="mt-1 relative rounded-md shadow-sm">
-                      <input
-                        type="number"
-                        value={(value * 100).toFixed(1)}
-                        readOnly
-                        className="block w-full pr-10 border border-gray-300 rounded-md px-3 py-2 text-gray-900"
-                      />
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500 sm:text-sm">%</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h4 className="font-medium text-gray-900 mb-4">Direct Deposit Settings</h4>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">Bank Account</p>
-                    <p className="text-sm text-gray-500">Wells Fargo Business Checking ****1234</p>
-                  </div>
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                </div>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-medium text-gray-900 mb-4">Payroll Schedule</h4>
-              <select className="block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900">
-                <option>Bi-weekly (Every 2 weeks)</option>
-                <option>Semi-monthly (1st and 15th)</option>
-                <option>Monthly</option>
-                <option>Weekly</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Pay Stub Modal */}
-      {showPayStub && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Pay Stub</h3>
-              <button 
-                onClick={() => setShowPayStub(null)}
-                className="text-gray-500 hover:text-gray-700"
+          {/* Process Button */}
+          {calculations.length > 0 && connections.length > 0 && (
+            <div className="flex justify-end">
+              <Button
+                onClick={processPayroll}
+                disabled={!selectedAccount || processing}
+                size="lg"
               >
-                ✕
-              </button>
+                {processing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Process Payroll ({formatCurrency(totalNet)})
+                  </>
+                )}
+              </Button>
             </div>
-            
-            {(() => {
-              const employee = payrollData.employees.find(e => e.id === showPayStub);
-              if (!employee) return null;
-              
-              return (
-                <div className="space-y-6">
-                  <div className="border-b pb-4">
-                    <h4 className="font-semibold text-gray-900">BusinessFlow Services</h4>
-                    <p className="text-sm text-gray-600">123 Main St, San Francisco, CA 94102</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <h5 className="font-medium text-gray-900 mb-2">Employee Information</h5>
-                      <p className="text-sm text-gray-600">{employee.name}</p>
-                      <p className="text-sm text-gray-600">{employee.role}</p>
-                      <p className="text-sm text-gray-600">Employee ID: #{employee.id}</p>
-                    </div>
-                    <div>
-                      <h5 className="font-medium text-gray-900 mb-2">Pay Period</h5>
-                      <p className="text-sm text-gray-600">{payrollData.currentPeriod.startDate} to {payrollData.currentPeriod.endDate}</p>
-                      <p className="text-sm text-gray-600">Pay Date: {payrollData.currentPeriod.processDate}</p>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h5 className="font-medium text-gray-900 mb-2">Earnings</h5>
-                    <table className="w-full text-sm">
-                      <tr>
-                        <td className="text-gray-600">Regular Hours ({employee.regularHours} @ ${employee.hourlyRate}/hr)</td>
-                        <td className="text-right text-gray-900">${employee.regularPay.toFixed(2)}</td>
-                      </tr>
-                      {employee.overtimeHours > 0 && (
-                        <tr>
-                          <td className="text-gray-600">Overtime ({employee.overtimeHours} @ ${employee.hourlyRate * 1.5}/hr)</td>
-                          <td className="text-right text-gray-900">${employee.overtimePay.toFixed(2)}</td>
-                        </tr>
-                      )}
-                      {employee.bonuses > 0 && (
-                        <tr>
-                          <td className="text-gray-600">Bonuses</td>
-                          <td className="text-right text-gray-900">${employee.bonuses.toFixed(2)}</td>
-                        </tr>
-                      )}
-                      <tr className="border-t font-medium">
-                        <td className="pt-2">Gross Pay</td>
-                        <td className="text-right pt-2">${employee.grossPay.toFixed(2)}</td>
-                      </tr>
-                    </table>
-                  </div>
-                  
-                  <div>
-                    <h5 className="font-medium text-gray-900 mb-2">Deductions</h5>
-                    <table className="w-full text-sm">
-                      <tr>
-                        <td className="text-gray-600">Federal Tax</td>
-                        <td className="text-right text-gray-900">-${employee.federalTax.toFixed(2)}</td>
-                      </tr>
-                      <tr>
-                        <td className="text-gray-600">State Tax</td>
-                        <td className="text-right text-gray-900">-${employee.stateTax.toFixed(2)}</td>
-                      </tr>
-                      <tr>
-                        <td className="text-gray-600">Social Security</td>
-                        <td className="text-right text-gray-900">-${employee.socialSecurity.toFixed(2)}</td>
-                      </tr>
-                      <tr>
-                        <td className="text-gray-600">Medicare</td>
-                        <td className="text-right text-gray-900">-${employee.medicare.toFixed(2)}</td>
-                      </tr>
-                      {employee.healthInsurance > 0 && (
-                        <tr>
-                          <td className="text-gray-600">Health Insurance</td>
-                          <td className="text-right text-gray-900">-${employee.healthInsurance.toFixed(2)}</td>
-                        </tr>
-                      )}
-                      {employee.retirement401k > 0 && (
-                        <tr>
-                          <td className="text-gray-600">401(k) Contribution</td>
-                          <td className="text-right text-gray-900">-${employee.retirement401k.toFixed(2)}</td>
-                        </tr>
-                      )}
-                      <tr className="border-t font-medium">
-                        <td className="pt-2">Total Deductions</td>
-                        <td className="text-right pt-2">-${employee.totalDeductions.toFixed(2)}</td>
-                      </tr>
-                    </table>
-                  </div>
-                  
-                  <div className="border-t pt-4">
-                    <div className="flex justify-between items-center text-lg font-semibold">
-                      <span>Net Pay</span>
-                      <span className="text-green-600">${employee.netPay.toFixed(2)}</span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-2">
-                      Payment Method: {employee.payMethod} {employee.bankAccount !== 'N/A' && `(${employee.bankAccount})`}
-                    </p>
-                  </div>
-                  
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h5 className="font-medium text-gray-900 mb-2">Year-to-Date</h5>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">YTD Gross:</span>
-                        <span className="ml-2 text-gray-900">${employee.ytdGross.toLocaleString()}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">YTD Net:</span>
-                        <span className="ml-2 text-gray-900">${employee.ytdNet.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end space-x-4">
-                    <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 flex items-center">
-                      <Download className="w-4 h-4 mr-2" />
-                      Download PDF
-                    </button>
-                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                      Email to Employee
-                    </button>
-                  </div>
-                </div>
-              );
-            })()}
+          )}
+        </TabsContent>
+
+        <TabsContent value="accounts" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Connected Bank Accounts</h2>
+            <Button
+              onClick={() => {
+                if (!linkToken) {
+                  createLinkToken();
+                } else {
+                  open();
+                }
+              }}
+              disabled={!ready && linkToken !== null}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Connect Bank Account
+            </Button>
           </div>
-        </div>
-      )}
+
+          <div className="grid gap-4">
+            {connections.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <Building className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">No bank accounts connected</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Connect your business checking account to process payroll
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              connections.map((conn) => (
+                <Card key={conn.connectionId}>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <CardTitle>{conn.institutionName}</CardTitle>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => disconnectAccount(conn.connectionId)}
+                      >
+                        Disconnect
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {conn.accounts.map((acc) => (
+                        <div key={acc.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                          <div>
+                            <p className="font-medium">{acc.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {acc.type} - {acc.subtype} (...{acc.mask})
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold">{formatCurrency(acc.balance)}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Available: {formatCurrency(acc.available)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-4">
+          <h2 className="text-xl font-semibold">Payroll History</h2>
+          
+          <div className="space-y-4">
+            {payrollHistory.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <p className="text-muted-foreground">No payroll history yet</p>
+                </CardContent>
+              </Card>
+            ) : (
+              payrollHistory.map((run) => (
+                <Card key={run.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle className="text-lg">
+                          {format(new Date(run.periodStart), 'MMM d')} - {format(new Date(run.periodEnd), 'MMM d, yyyy')}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          Processed {format(new Date(run.createdAt), 'MMM d, yyyy h:mm a')}
+                        </p>
+                      </div>
+                      <Badge variant={run.status === 'completed' ? 'default' : 'secondary'}>
+                        {run.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-muted-foreground">Total Amount</span>
+                      <span className="font-semibold">{formatCurrency(run.totalAmount)}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {run.payments.map((payment: any) => (
+                        <div key={payment.id} className="flex justify-between items-center text-sm">
+                          <span>{payment.user.name}</span>
+                          <span>{formatCurrency(payment.netAmount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

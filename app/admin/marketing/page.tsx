@@ -1,582 +1,512 @@
 'use client';
 
-import { useState } from 'react';
-import { 
-  Mail, MessageSquare, Users, TrendingUp, Send, Plus, Edit, 
-  Eye, Copy, Filter, BarChart3
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/src/hooks/useAuth';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/src/components/ui/card';
+import { Button } from '@/src/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
+import { Badge } from '@/src/components/ui/badge';
+import { Input } from '@/src/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/src/components/ui/select';
+import { Mail, MessageSquare, Users, TrendingUp, Plus, Filter, Download, Send, Clock, CheckCircle } from 'lucide-react';
+import { format } from 'date-fns';
+import { useOrganization } from '@/src/hooks/useOrganization';
 
-// Types
-type EmailCampaign = {
-  id: number;
-  name: string;
-  subject: string;
-  status: string;
-  sentDate?: string;
-  scheduledDate?: string | null;
-  recipients: number;
-  opened: number;
-  clicked: number;
-  conversions: number;
-  revenue: number;
-};
+export default function MarketingDashboard() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const { organization, hasFeature } = useOrganization();
+  const [activeTab, setActiveTab] = useState('campaigns');
+  const [campaigns, setCampaigns] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [segments, setSegments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalContacts: 0,
+    emailSubscribers: 0,
+    smsSubscribers: 0,
+    campaignRevenue: 0,
+  });
 
-type SMSCampaign = {
-  id: number;
-  name: string;
-  message: string;
-  status: string;
-  sentDate?: string;
-  scheduledDate?: string | null;
-  recipients: number;
-  replies: number;
-  conversions: number;
-  revenue: number;
-};
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    } else if (user && organization) {
+      if (!hasFeature('hasMarketing')) {
+        router.push('/admin?upgrade=marketing');
+      } else {
+        loadMarketingData();
+      }
+    }
+  }, [user, authLoading, organization, hasFeature, router]);
 
-// Mock data for campaigns
-const campaignsData = {
-  emailCampaigns: [
-    {
-      id: 1,
-      name: 'January Cleaning Special',
-      subject: '🎉 New Year, Clean Home - 20% Off First Booking!',
-      status: 'sent',
-      sentDate: '2024-01-05',
-      recipients: 3250,
-      opened: 1853,
-      clicked: 427,
-      conversions: 89,
-      revenue: 7120,
-    },
-    {
-      id: 2,
-      name: 'Spring Deep Clean Promo',
-      subject: 'Spring into Savings - Book Your Deep Clean Today',
-      status: 'scheduled',
-      scheduledDate: '2024-03-15',
-      recipients: 2800,
-      opened: 0,
-      clicked: 0,
-      conversions: 0,
-      revenue: 0,
-    },
-    {
-      id: 3,
-      name: 'Customer Win-Back',
-      subject: 'We Miss You! Come Back for 30% Off',
-      status: 'draft',
-      scheduledDate: null,
-      recipients: 450,
-      opened: 0,
-      clicked: 0,
-      conversions: 0,
-      revenue: 0,
-    },
-  ],
-  smsCampaigns: [
-    {
-      id: 1,
-      name: 'Last Minute Availability',
-      message: 'BusinessFlow: We have a last-minute opening tomorrow at 2 PM. Reply YES to book!',
-      status: 'sent',
-      sentDate: '2024-01-14',
-      recipients: 125,
-      replies: 34,
-      conversions: 28,
-      revenue: 2240,
-    },
-    {
-      id: 2,
-      name: 'Appointment Reminder',
-      message: 'BusinessFlow: Reminder - Your cleaning is scheduled for tomorrow at 10 AM. Reply CANCEL to cancel.',
-      status: 'scheduled',
-      scheduledDate: '2024-01-16',
-      recipients: 45,
-      replies: 0,
-      conversions: 0,
-      revenue: 0,
-    },
-  ],
-  customerSegments: [
-    {
-      id: 1,
-      name: 'VIP Customers',
-      description: 'Customers with 10+ bookings',
-      count: 234,
-      avgLTV: 2850,
-      lastUpdated: '2024-01-10',
-    },
-    {
-      id: 2,
-      name: 'New Customers',
-      description: 'First booking in last 30 days',
-      count: 89,
-      avgLTV: 125,
-      lastUpdated: '2024-01-15',
-    },
-    {
-      id: 3,
-      name: 'Inactive Customers',
-      description: 'No booking in last 90 days',
-      count: 456,
-      avgLTV: 680,
-      lastUpdated: '2024-01-15',
-    },
-    {
-      id: 4,
-      name: 'Commercial Clients',
-      description: 'Business accounts',
-      count: 45,
-      avgLTV: 8900,
-      lastUpdated: '2024-01-12',
-    },
-  ],
-  leadAnalytics: {
-    totalLeads: 1234,
-    convertedLeads: 234,
-    conversionRate: 19,
-    avgTimeToConvert: '3.2 days',
-    topSource: 'Website Form',
-    leadsBySource: [
-      { source: 'Website Form', count: 456, conversion: 22 },
-      { source: 'Google Ads', count: 345, conversion: 18 },
-      { source: 'Facebook', count: 234, conversion: 15 },
-      { source: 'Referral', count: 123, conversion: 32 },
-      { source: 'Direct', count: 76, conversion: 12 },
-    ],
-  },
-};
+  const loadMarketingData = async () => {
+    try {
+      // Load campaigns
+      const campaignsRes = await fetch('/api/marketing/campaigns');
+      const campaignsData = await campaignsRes.json();
+      setCampaigns(campaignsData.campaigns || []);
 
-export default function MarketingPage() {
-  const [activeTab, setActiveTab] = useState<'campaigns' | 'segments' | 'analytics'>('campaigns');
-  const [campaignType, setCampaignType] = useState<'email' | 'sms'>('email');
-  const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
+      // Load contacts
+      const contactsRes = await fetch('/api/marketing/contacts');
+      const contactsData = await contactsRes.json();
+      setContacts(contactsData.contacts || []);
+
+      // Load segments
+      const segmentsRes = await fetch('/api/marketing/segments');
+      const segmentsData = await segmentsRes.json();
+      setSegments(segmentsData.segments || []);
+
+      // Calculate stats
+      const totalContacts = contactsData.contacts?.length || 0;
+      const emailSubscribers = contactsData.contacts?.filter((c: any) => c.emailOptIn).length || 0;
+      const smsSubscribers = contactsData.contacts?.filter((c: any) => c.smsOptIn).length || 0;
+      const campaignRevenue = campaignsData.campaigns?.reduce((sum: number, c: any) => 
+        sum + (c.stats?.revenue || 0), 0) || 0;
+
+      setStats({
+        totalContacts,
+        emailSubscribers,
+        smsSubscribers,
+        campaignRevenue,
+      });
+
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to load marketing data:', error);
+      setLoading(false);
+    }
+  };
+
+  if (authLoading || loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Marketing Hub</h1>
-        <button 
-          onClick={() => setShowCampaignBuilder(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          New Campaign
-        </button>
+    <div className="container mx-auto py-6 px-4">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Marketing Automation</h1>
+        <p className="text-gray-600 mt-2">Create campaigns, manage contacts, and track performance</p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Leads</p>
-              <p className="text-2xl font-bold text-gray-900">{campaignsData.leadAnalytics.totalLeads.toLocaleString()}</p>
-            </div>
-            <Users className="w-10 h-10 text-blue-600" />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Conversion Rate</p>
-              <p className="text-2xl font-bold text-gray-900">{campaignsData.leadAnalytics.conversionRate}%</p>
-            </div>
-            <TrendingUp className="w-10 h-10 text-green-600" />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Active Campaigns</p>
-              <p className="text-2xl font-bold text-gray-900">5</p>
-            </div>
-            <Send className="w-10 h-10 text-purple-600" />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Campaign Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">$9,360</p>
-            </div>
-            <BarChart3 className="w-10 h-10 text-orange-600" />
-          </div>
-        </div>
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Contacts</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalContacts}</div>
+            <p className="text-xs text-muted-foreground">Active subscribers</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Email Subscribers</CardTitle>
+            <Mail className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.emailSubscribers}</div>
+            <p className="text-xs text-muted-foreground">Opted in for emails</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">SMS Subscribers</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.smsSubscribers}</div>
+            <p className="text-xs text-muted-foreground">Opted in for SMS</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Campaign Revenue</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${stats.campaignRevenue.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">From marketing campaigns</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="border-b">
-          <nav className="flex space-x-8 px-6">
-            {(['campaigns', 'segments', 'analytics'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm capitalize ${
-                  activeTab === tab
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </div>
+      {/* Main Content Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+          <TabsTrigger value="contacts">Contacts</TabsTrigger>
+          <TabsTrigger value="segments">Segments</TabsTrigger>
+          <TabsTrigger value="automations">Automations</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+        </TabsList>
 
-      {activeTab === 'campaigns' && (
-        <>
-          {/* Campaign Type Selector */}
-          <div className="flex space-x-4 mb-6">
-            <button
-              onClick={() => setCampaignType('email')}
-              className={`px-4 py-2 rounded-lg flex items-center ${
-                campaignType === 'email' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              <Mail className="w-4 h-4 mr-2" />
-              Email Campaigns
-            </button>
-            <button
-              onClick={() => setCampaignType('sms')}
-              className={`px-4 py-2 rounded-lg flex items-center ${
-                campaignType === 'sms' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              SMS Campaigns
-            </button>
+        {/* Campaigns Tab */}
+        <TabsContent value="campaigns" className="mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Campaigns</h2>
+            <Button onClick={() => router.push('/admin/marketing/campaigns/new')}>
+              <Plus className="mr-2 h-4 w-4" /> Create Campaign
+            </Button>
           </div>
 
-          {/* Campaign List */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Campaign
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Recipients
-                    </th>
-                    {campaignType === 'email' && (
-                      <>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Open Rate
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Click Rate
-                        </th>
-                      </>
-                    )}
-                    {campaignType === 'sms' && (
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Reply Rate
-                      </th>
-                    )}
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Conversions
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Revenue
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {(campaignType === 'email' ? campaignsData.emailCampaigns : campaignsData.smsCampaigns).map((campaign) => (
-                    <tr key={campaign.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{campaign.name}</div>
-                          <div className="text-sm text-gray-500">
-                            {campaignType === 'email' 
-                              ? (campaign as EmailCampaign).subject 
-                              : (campaign as SMSCampaign).message.substring(0, 40) + '...'}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          campaign.status === 'sent' 
-                            ? 'bg-green-100 text-green-800'
-                            : campaign.status === 'scheduled'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {campaign.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {campaign.sentDate || campaign.scheduledDate || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {campaign.recipients.toLocaleString()}
-                      </td>
-                      {campaignType === 'email' && (
-                        <>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {campaign.status === 'sent' ? `${(((campaign as EmailCampaign).opened / campaign.recipients) * 100).toFixed(1)}%` : '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {campaign.status === 'sent' ? `${(((campaign as EmailCampaign).clicked / campaign.recipients) * 100).toFixed(1)}%` : '-'}
-                          </td>
-                        </>
-                      )}
-                      {campaignType === 'sms' && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {campaign.status === 'sent' ? `${(((campaign as SMSCampaign).replies / campaign.recipients) * 100).toFixed(1)}%` : '-'}
-                        </td>
-                      )}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {campaign.conversions || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {campaign.revenue > 0 ? `$${campaign.revenue.toLocaleString()}` : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex space-x-2">
-                          <button className="text-gray-600 hover:text-gray-900">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button className="text-gray-600 hover:text-gray-900">
-                            <Copy className="w-4 h-4" />
-                          </button>
-                          <button className="text-gray-600 hover:text-gray-900">
-                            <Edit className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+          <div className="space-y-4">
+            {campaigns.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">No campaigns created yet</p>
+                  <Button onClick={() => router.push('/admin/marketing/campaigns/new')}>
+                    Create Your First Campaign
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              campaigns.map((campaign: any) => (
+                <Card key={campaign.id} className="cursor-pointer hover:shadow-lg transition-shadow"
+                      onClick={() => router.push(`/admin/marketing/campaigns/${campaign.id}`)}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">{campaign.name}</CardTitle>
+                        <CardDescription className="flex items-center gap-2 mt-1">
+                          {campaign.type === 'email' && <Mail className="h-4 w-4" />}
+                          {campaign.type === 'sms' && <MessageSquare className="h-4 w-4" />}
+                          {campaign.type === 'both' && (
+                            <>
+                              <Mail className="h-4 w-4" />
+                              <MessageSquare className="h-4 w-4" />
+                            </>
+                          )}
+                          <span>{campaign.type.toUpperCase()} Campaign</span>
+                        </CardDescription>
+                      </div>
+                      <Badge 
+                        variant={campaign.status === 'active' ? 'default' : 
+                                campaign.status === 'completed' ? 'secondary' : 
+                                campaign.status === 'scheduled' ? 'outline' : 'secondary'}>
+                        {campaign.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Sent</p>
+                        <p className="font-semibold">{campaign.stats?.sent || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Opens</p>
+                        <p className="font-semibold">{campaign.stats?.opens || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Clicks</p>
+                        <p className="font-semibold">{campaign.stats?.clicks || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Revenue</p>
+                        <p className="font-semibold">${campaign.stats?.revenue || 0}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Contacts Tab */}
+        <TabsContent value="contacts" className="mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Contacts</h2>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => router.push('/admin/marketing/contacts/import')}>
+                <Download className="mr-2 h-4 w-4" /> Import
+              </Button>
+              <Button onClick={() => router.push('/admin/marketing/contacts/new')}>
+                <Plus className="mr-2 h-4 w-4" /> Add Contact
+              </Button>
+            </div>
+          </div>
+
+          <div className="mb-4 flex gap-4">
+            <Input placeholder="Search contacts..." className="max-w-sm" />
+            <Select>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by tag" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Contacts</SelectItem>
+                <SelectItem value="customer">Customers</SelectItem>
+                <SelectItem value="lead">Leads</SelectItem>
+                <SelectItem value="vip">VIP</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b">
+                    <tr>
+                      <th className="text-left p-4">Contact</th>
+                      <th className="text-left p-4">Email</th>
+                      <th className="text-left p-4">Phone</th>
+                      <th className="text-left p-4">Last Booking</th>
+                      <th className="text-left p-4">Total Spent</th>
+                      <th className="text-left p-4">Subscriptions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {contacts.map((contact: any) => (
+                      <tr key={contact.id} className="border-b hover:bg-gray-50 cursor-pointer"
+                          onClick={() => router.push(`/admin/marketing/contacts/${contact.id}`)}>
+                        <td className="p-4">
+                          <div>
+                            <p className="font-medium">{contact.firstName} {contact.lastName}</p>
+                            <p className="text-sm text-muted-foreground">{contact.tags.join(', ')}</p>
+                          </div>
+                        </td>
+                        <td className="p-4">{contact.email}</td>
+                        <td className="p-4">{contact.phone || '-'}</td>
+                        <td className="p-4">
+                          {contact.lastBooking ? format(new Date(contact.lastBooking), 'MMM d, yyyy') : '-'}
+                        </td>
+                        <td className="p-4">${contact.totalSpent.toFixed(2)}</td>
+                        <td className="p-4">
+                          <div className="flex gap-2">
+                            {contact.emailOptIn && <Badge variant="outline">Email</Badge>}
+                            {contact.smsOptIn && <Badge variant="outline">SMS</Badge>}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Segments Tab */}
+        <TabsContent value="segments" className="mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Segments</h2>
+            <Button onClick={() => router.push('/admin/marketing/segments/new')}>
+              <Plus className="mr-2 h-4 w-4" /> Create Segment
+            </Button>
           </div>
-        </>
-      )}
 
-      {activeTab === 'segments' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {campaignsData.customerSegments.map((segment) => (
-            <div key={segment.id} className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900">{segment.name}</h4>
-                  <p className="text-sm text-gray-500">{segment.description}</p>
-                </div>
-                <button className="text-gray-400 hover:text-gray-600">
-                  <Filter className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600">Customers</p>
-                  <p className="text-2xl font-bold text-gray-900">{segment.count}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Avg LTV</p>
-                  <p className="text-2xl font-bold text-gray-900">${segment.avgLTV.toLocaleString()}</p>
-                </div>
-              </div>
-              <div className="mt-4 flex justify-between items-center">
-                <p className="text-xs text-gray-500">Updated {segment.lastUpdated}</p>
-                <div className="flex space-x-2">
-                  <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm">
-                    Export
-                  </button>
-                  <button className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
-                    Campaign
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {segments.map((segment: any) => (
+              <Card key={segment.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="text-lg">{segment.name}</CardTitle>
+                  <CardDescription>{segment.size} contacts</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">{segment.description}</p>
+                  <Button className="w-full" variant="outline"
+                          onClick={() => router.push(`/admin/marketing/campaigns/new?segment=${segment.id}`)}>
+                    <Send className="mr-2 h-4 w-4" /> Create Campaign
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
 
-      {activeTab === 'analytics' && (
-        <div>
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Lead Capture Analytics</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Total Leads</p>
-                <p className="text-2xl font-bold text-gray-900">{campaignsData.leadAnalytics.totalLeads}</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Converted</p>
-                <p className="text-2xl font-bold text-gray-900">{campaignsData.leadAnalytics.convertedLeads}</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Conversion Rate</p>
-                <p className="text-2xl font-bold text-gray-900">{campaignsData.leadAnalytics.conversionRate}%</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Avg Time to Convert</p>
-                <p className="text-2xl font-bold text-gray-900">{campaignsData.leadAnalytics.avgTimeToConvert}</p>
-              </div>
-            </div>
-            
-            <h4 className="font-medium text-gray-900 mb-3">Leads by Source</h4>
-            <div className="space-y-3">
-              {campaignsData.leadAnalytics.leadsBySource.map((source) => (
-                <div key={source.source} className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-900">{source.source}</span>
-                      <span className="text-sm text-gray-500">{source.count} leads ({source.conversion}% conversion)</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
-                        style={{ width: `${(source.count / campaignsData.leadAnalytics.totalLeads) * 100}%` }}
-                      />
-                    </div>
+        {/* Automations Tab */}
+        <TabsContent value="automations" className="mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Automations</h2>
+            <Button onClick={() => router.push('/admin/marketing/automations/new')}>
+              <Plus className="mr-2 h-4 w-4" /> Create Automation
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-lg">Welcome Series</CardTitle>
+                    <CardDescription>3-email series for new customers</CardDescription>
+                  </div>
+                  <Badge variant="default">Active</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span>1,234 enrolled</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span>Last triggered 2 hours ago</span>
                   </div>
                 </div>
-              ))}
-            </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-lg">Win-Back Campaign</CardTitle>
+                    <CardDescription>Re-engage customers after 60 days</CardDescription>
+                  </div>
+                  <Badge variant="default">Active</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span>456 enrolled</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span>Last triggered yesterday</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-lg">Review Request</CardTitle>
+                    <CardDescription>Request reviews 24 hours after service</CardDescription>
+                  </div>
+                  <Badge variant="secondary">Paused</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span>789 enrolled</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span>Paused 3 days ago</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </div>
-      )}
+        </TabsContent>
 
-      {/* Campaign Builder Modal */}
-      {showCampaignBuilder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Create New Campaign</h3>
-              <button 
-                onClick={() => setShowCampaignBuilder(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Campaign Type</label>
-                <div className="flex space-x-4">
-                  <label className="flex items-center">
-                    <input type="radio" name="type" defaultChecked className="mr-2" />
-                    <Mail className="w-4 h-4 mr-2 text-gray-600" />
-                    Email Campaign
-                  </label>
-                  <label className="flex items-center">
-                    <input type="radio" name="type" className="mr-2" />
-                    <MessageSquare className="w-4 h-4 mr-2 text-gray-600" />
-                    SMS Campaign
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Campaign Name</label>
-                <input 
-                  type="text" 
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900"
-                  placeholder="Spring Cleaning Special"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Target Segment</label>
-                <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900">
-                  <option>All Customers</option>
-                  {campaignsData.customerSegments.map(segment => (
-                    <option key={segment.id}>{segment.name} ({segment.count} customers)</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject Line</label>
-                <input 
-                  type="text" 
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900"
-                  placeholder="🌸 Spring Cleaning Special - 25% Off Deep Clean!"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Message Content</label>
-                <textarea 
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900"
-                  rows={8}
-                  placeholder="Hi {FirstName},
-
-Spring is here! Time to refresh your home with our professional deep service.
-
-For a limited time, enjoy 25% off your first deep clean booking. Our expert technicians will make your home sparkle from top to bottom.
-
-Book now and experience:
-✓ Eco-friendly cleaning products
-✓ Trained & insured professionals
-✓ 100% satisfaction guarantee
-
-Use code SPRING25 at checkout.
-
-Book Your Deep Clean Today → [CTA Button]
-
-Best regards,
-The BusinessFlow Team"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Schedule</label>
-                  <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900">
-                    <option>Send Now</option>
-                    <option>Schedule for Later</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
-                  <input 
-                    type="datetime-local" 
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-4">
-                <button 
-                  onClick={() => setShowCampaignBuilder(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
-                <button className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
-                  Save as Draft
-                </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
-                  <Send className="w-4 h-4 mr-2" />
-                  Schedule Campaign
-                </button>
-              </div>
-            </div>
+        {/* Templates Tab */}
+        <TabsContent value="templates" className="mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Templates</h2>
+            <Button onClick={() => router.push('/admin/marketing/templates/new')}>
+              <Plus className="mr-2 h-4 w-4" /> Create Template
+            </Button>
           </div>
-        </div>
-      )}
+
+          <Tabs defaultValue="email">
+            <TabsList>
+              <TabsTrigger value="email">Email Templates</TabsTrigger>
+              <TabsTrigger value="sms">SMS Templates</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="email" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Welcome Email</CardTitle>
+                    <CardDescription>For new customers</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      Welcome to {{businessName}}! We're thrilled to have you...
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Win-Back Email</CardTitle>
+                    <CardDescription>Re-engage lapsed customers</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      We miss you! Here's 20% off your next service...
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Review Request</CardTitle>
+                    <CardDescription>Post-service feedback</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      How was your experience? We'd love your feedback...
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="sms" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Appointment Reminder</CardTitle>
+                    <CardDescription>24-hour reminder</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      Hi {{firstName}}, reminder about your appointment tomorrow at {{time}}...
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Promotion SMS</CardTitle>
+                    <CardDescription>Special offers</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      {{businessName}}: Limited time! Get {{discount}}% off...
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Welcome SMS</CardTitle>
+                    <CardDescription>New customer greeting</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      Welcome to {{businessName}}! Save this number for easy booking...
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

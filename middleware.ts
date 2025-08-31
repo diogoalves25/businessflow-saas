@@ -2,6 +2,45 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const hostname = request.headers.get('host') || '';
+  const url = request.nextUrl;
+
+  // Handle custom domains and subdomains
+  const currentHost = hostname
+    .replace(`:${process.env.PORT || 3000}`, '')
+    .replace('.localhost', '')
+    .replace('.businessflow.app', '');
+
+  // Check if it's a custom domain or subdomain (not main domain)
+  const isMainDomain = 
+    currentHost === 'localhost' ||
+    currentHost === 'businessflow.app' ||
+    currentHost === 'app.businessflow.com' ||
+    currentHost === '';
+
+  if (!isMainDomain) {
+    // Check if it's a subdomain (organizationId.businessflow.app)
+    const isSubdomain = hostname.includes('.businessflow.app') || hostname.includes('.localhost');
+    
+    if (isSubdomain) {
+      // Extract organization ID from subdomain
+      const organizationId = currentHost;
+      
+      // Rewrite to the booking widget page with organizationId
+      url.pathname = `/booking/widget`;
+      url.searchParams.set('organizationId', organizationId);
+      
+      return NextResponse.rewrite(url);
+    } else {
+      // It's a custom domain
+      url.pathname = `/booking/widget`;
+      url.searchParams.set('customDomain', currentHost);
+      
+      return NextResponse.rewrite(url);
+    }
+  }
+
+  // Continue with normal Supabase authentication flow
   let supabaseResponse = NextResponse.next({
     request,
   })

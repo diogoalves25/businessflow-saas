@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ChatbotWidget from "@/components/ChatbotWidget";
-import { BusinessProvider } from "@/src/contexts/BusinessContext";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "BusinessFlow - Modern Service Business Management",
@@ -16,10 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <BusinessProvider>
+        <Providers>
           {children}
           <ChatbotWidget />
-        </BusinessProvider>
+        </Providers>
       </body>
     </html>
   );

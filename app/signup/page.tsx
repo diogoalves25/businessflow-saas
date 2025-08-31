@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { businessTemplates } from '@/src/lib/business-templates';
+import { loadStripe } from '@stripe/stripe-js';
+import { toast } from 'sonner';
 
 interface BusinessSignupData {
   businessName: string;
@@ -24,11 +26,17 @@ interface BusinessSignupData {
   agreeToTerms: boolean;
 }
 
+// Initialize Stripe
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
+
 const plans = [
   {
     id: 'starter',
     name: 'Starter',
     price: 29.99,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_ID || '',
     features: [
       'Up to 50 bookings/month',
       'Basic scheduling',
@@ -43,6 +51,7 @@ const plans = [
     id: 'growth',
     name: 'Growth',
     price: 59.99,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_GROWTH_ID || '',
     features: [
       'Up to 200 bookings/month',
       'Advanced scheduling & routing',
@@ -58,6 +67,7 @@ const plans = [
     id: 'premium',
     name: 'Premium',
     price: 99.99,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PREMIUM_ID || '',
     features: [
       'Unlimited bookings',
       'AI-powered optimization',
@@ -109,6 +119,7 @@ export default function BusinessSignup() {
     setSubmitting(true);
     
     try {
+      // First, create the organization in our database
       const signupData = {
         businessName: data.businessName,
         businessType: selectedBusinessType,
@@ -123,7 +134,7 @@ export default function BusinessSignup() {
         zipCode: data.zipCode
       };
 
-      const response = await fetch('/api/organizations', {
+      const orgResponse = await fetch('/api/organizations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -131,19 +142,56 @@ export default function BusinessSignup() {
         body: JSON.stringify(signupData),
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        alert(`Welcome to BusinessFlow! Your business "${result.organization.name}" has been created. Redirecting to admin dashboard...`);
-        setTimeout(() => {
-          router.push('/admin');
-        }, 2000);
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.error || 'Failed to create business'}`);
+      if (!orgResponse.ok) {
+        const error = await orgResponse.json();
+        throw new Error(error.error || 'Failed to create organization');
+      }
+
+      const { organization } = await orgResponse.json();
+
+      // Get the selected plan's Stripe price ID
+      const selectedPlanData = plans.find(p => p.id === selectedPlan);
+      
+      if (!selectedPlanData?.priceId) {
+        toast.error('Please run the Stripe setup script to configure pricing');
+        return;
+      }
+
+      // Create Stripe checkout session
+      const checkoutResponse = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId: selectedPlanData.priceId,
+          organizationId: organization.id,
+        }),
+      });
+
+      if (!checkoutResponse.ok) {
+        const error = await checkoutResponse.json();
+        throw new Error(error.error || 'Failed to create checkout session');
+      }
+
+      const { sessionId } = await checkoutResponse.json();
+
+      // Redirect to Stripe Checkout
+      if (!stripePromise) {
+        throw new Error('Stripe is not configured');
+      }
+
+      const stripe = await stripePromise;
+      const { error: stripeError } = await stripe.redirectToCheckout({
+        sessionId,
+      });
+
+      if (stripeError) {
+        throw stripeError;
       }
     } catch (error) {
       console.error('Signup error:', error);
-      alert('An error occurred. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'An error occurred. Please try again.');
     } finally {
       setSubmitting(false);
     }
