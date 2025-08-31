@@ -20,25 +20,36 @@ import { useBusiness } from '@/src/contexts/BusinessContext';
 import { SubscriptionBanner } from '@/src/components/subscription-banner';
 import { useWhiteLabel } from '@/lib/white-label/theme-provider';
 import { BrandedLogo } from '@/src/components/white-label/BrandedLogo';
+import { createClient } from '@/src/lib/supabase/client';
+import { AuthWrapper } from './auth-wrapper';
 
-export default function AdminLayout({
+function AdminLayoutContent({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const router = useRouter();
   const pathname = usePathname();
   const { businessName, template } = useBusiness();
   const { settings } = useWhiteLabel();
+  const supabase = createClient();
 
-  // Check if business type is selected
+  // Check if business type is selected and get user
   useEffect(() => {
     const hasBusinessType = localStorage.getItem('businessType');
     if (!hasBusinessType && pathname !== '/onboarding/business-type') {
       router.push('/onboarding/business-type');
     }
-  }, [pathname, router]);
+
+    // Get current user
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, [pathname, router, supabase]);
 
   const sidebarItems = [
     { id: 'overview', name: 'Overview', icon: Home, path: '/admin' },
@@ -123,7 +134,10 @@ export default function AdminLayout({
         </nav>
         <div className="flex-shrink-0 p-4 border-t">
           <button 
-            onClick={() => router.push('/')}
+            onClick={async () => {
+              await supabase.auth.signOut();
+              router.push('/login');
+            }}
             className="w-full flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg"
           >
             <LogOut size={20} />
@@ -150,9 +164,9 @@ export default function AdminLayout({
               {sidebarItems.find(item => item.path === pathname)?.name || 'Dashboard'}
             </h2>
             <div className="flex items-center space-x-4">
-              <span className="text-gray-600">Welcome, Admin</span>
+              <span className="text-gray-600">Welcome, {user?.email || 'User'}</span>
               <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-                A
+                {user?.email?.[0]?.toUpperCase() || 'U'}
               </div>
             </div>
           </div>
@@ -164,5 +178,17 @@ export default function AdminLayout({
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <AuthWrapper>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </AuthWrapper>
   );
 }

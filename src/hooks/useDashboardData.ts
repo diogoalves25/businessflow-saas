@@ -50,8 +50,14 @@ export function useDashboardData(organizationId?: string) {
         // For demo mode or when no org ID, fetch first organization
         // const orgParam = organizationId || 'demo=true';
         
+        // Don't fetch if no organization ID
+        if (!organizationId) {
+          setLoading(false);
+          return;
+        }
+
         // Fetch organization data
-        const orgResponse = await fetch(`/api/organizations?${organizationId ? `id=${organizationId}` : 'demo=true'}`);
+        const orgResponse = await fetch(`/api/organizations?id=${organizationId}`);
         const org = await orgResponse.json();
         
         // Fetch bookings

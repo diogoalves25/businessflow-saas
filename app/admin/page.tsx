@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import {
   Calendar,
   DollarSign,
@@ -9,9 +10,29 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useDashboardData } from '@/src/hooks/useDashboardData';
+import { createClient } from '@/src/lib/supabase/client';
+import { prisma } from '@/src/lib/prisma';
 
 export default function AdminDashboard() {
-  const { stats, recentBookings, topTechnicians, revenueData, loading } = useDashboardData();
+  const [organizationId, setOrganizationId] = useState<string | undefined>();
+  const supabase = createClient();
+  
+  useEffect(() => {
+    const getOrganization = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Fetch user's organization from database
+        const response = await fetch(`/api/users/${user.id}/organization`);
+        if (response.ok) {
+          const org = await response.json();
+          setOrganizationId(org.id);
+        }
+      }
+    };
+    getOrganization();
+  }, [supabase]);
+
+  const { stats, recentBookings, topTechnicians, revenueData, loading } = useDashboardData(organizationId);
 
   if (loading) {
     return (
