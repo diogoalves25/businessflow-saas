@@ -159,13 +159,16 @@ export function useDashboardData(organizationId?: string) {
 
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
-        // Use fallback data
+        // Don't use fallback data - it makes it look like user is logged in
         setStats({
-          totalBookings: 15,
-          monthlyRevenue: 4500,
-          activeTechnicians: 4,
-          satisfactionScore: 4.5,
+          totalBookings: 0,
+          monthlyRevenue: 0,
+          activeTechnicians: 0,
+          satisfactionScore: 0,
         });
+        setRecentBookings([]);
+        setTopTechnicians([]);
+        setRevenueData([]);
       } finally {
         setLoading(false);
       }

@@ -34,10 +34,22 @@ export default function AdminDashboard() {
 
   const { stats, recentBookings, topTechnicians, revenueData, loading } = useDashboardData(organizationId);
 
-  if (loading) {
+  if (loading || !organizationId) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // If no data after loading, show error
+  if (!loading && stats.totalBookings === 0 && stats.monthlyRevenue === 0) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Unable to load dashboard data</p>
+          <a href="/login" className="text-blue-600 hover:underline">Please login</a>
+        </div>
       </div>
     );
   }
