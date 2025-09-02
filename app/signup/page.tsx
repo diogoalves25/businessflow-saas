@@ -218,7 +218,7 @@ export default function BusinessSignup() {
             </Link>
             <h1 className="text-xl font-bold text-blue-600">BusinessFlow Business Signup</h1>
             <div className="text-sm text-gray-600">
-              Already have an account? <Link href="/admin" className="text-blue-600 hover:text-blue-700 font-medium">Sign In</Link>
+              Already have an account? <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">Sign In</Link>
             </div>
           </div>
         </div>

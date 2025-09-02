@@ -36,20 +36,14 @@ function AdminLayoutContent({
   const { settings } = useWhiteLabel();
   const supabase = createClient();
 
-  // Check if business type is selected and get user
+  // Get current user
   useEffect(() => {
-    const hasBusinessType = localStorage.getItem('businessType');
-    if (!hasBusinessType && pathname !== '/onboarding/business-type') {
-      router.push('/onboarding/business-type');
-    }
-
-    // Get current user
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
     };
     getUser();
-  }, [pathname, router, supabase]);
+  }, [supabase]);
 
   const sidebarItems = [
     { id: 'overview', name: 'Overview', icon: Home, path: '/admin' },

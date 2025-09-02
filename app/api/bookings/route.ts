@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { createClient } from '@/src/lib/supabase/server';
 import { NotificationService } from '@/src/lib/notifications';
 
 // POST: Create new booking
 export async function POST(request: NextRequest) {
   try {
-    // const session = await getServerSession(authOptions); // TODO: Implement auth check
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     const body = await request.json();
     
     const {
@@ -129,6 +138,17 @@ export async function POST(request: NextRequest) {
 // GET: List bookings (with filters)
 export async function GET(request: NextRequest) {
   try {
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     const { searchParams } = new URL(request.url);
     const organizationId = searchParams.get('organizationId');
     const customerId = searchParams.get('customerId');
@@ -178,6 +198,17 @@ export async function GET(request: NextRequest) {
 // PUT: Update booking status
 export async function PUT(request: NextRequest) {
   try {
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     const body = await request.json();
     const { id, status, technicianId, rating, review } = body;
 
@@ -217,6 +248,17 @@ export async function PUT(request: NextRequest) {
 // DELETE: Cancel booking
 export async function DELETE(request: NextRequest) {
   try {
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

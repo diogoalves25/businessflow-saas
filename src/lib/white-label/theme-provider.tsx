@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { createClient } from '@/src/lib/supabase/client';
+import { useBusiness } from '@/src/contexts/BusinessContext';
 
 interface WhiteLabelSettings {
   id: string;
@@ -48,12 +49,30 @@ export function useWhiteLabel() {
 }
 
 export function WhiteLabelProvider({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
   const [settings, setSettings] = useState<WhiteLabelSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Get user's organization from database
+        const { data: dbUser } = await supabase
+          .from('users')
+          .select('organizationId')
+          .eq('id', user.id)
+          .single();
+        
+        setOrganizationId(dbUser?.organizationId || null);
+      }
+    };
+    getUser();
+  }, [supabase]);
 
   const fetchSettings = async () => {
-    if (!session?.user?.organizationId) {
+    if (!organizationId) {
       setSettings(defaultSettings);
       setLoading(false);
       return;
@@ -77,7 +96,7 @@ export function WhiteLabelProvider({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     fetchSettings();
-  }, [session?.user?.organizationId]);
+  }, [organizationId]);
 
   // Apply theme CSS variables
   useEffect(() => {

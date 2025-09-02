@@ -10,31 +10,13 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useDashboardData } from '@/src/hooks/useDashboardData';
-import { createClient } from '@/src/lib/supabase/client';
-import { prisma } from '@/src/lib/prisma';
+import { useBusiness } from '@/src/contexts/BusinessContext';
 
 export default function AdminDashboard() {
-  const [organizationId, setOrganizationId] = useState<string | undefined>();
-  const supabase = createClient();
-  
-  useEffect(() => {
-    const getOrganization = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Fetch user's organization from database
-        const response = await fetch(`/api/users/${user.id}/organization`);
-        if (response.ok) {
-          const org = await response.json();
-          setOrganizationId(org.id);
-        }
-      }
-    };
-    getOrganization();
-  }, [supabase]);
-
+  const { organizationId, loading: contextLoading } = useBusiness();
   const { stats, recentBookings, topTechnicians, revenueData, loading } = useDashboardData(organizationId);
 
-  if (loading || !organizationId) {
+  if (loading || contextLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -42,13 +24,13 @@ export default function AdminDashboard() {
     );
   }
 
-  // If no data after loading, show error
-  if (!loading && stats.totalBookings === 0 && stats.monthlyRevenue === 0) {
+  // If no organization after loading, show setup message
+  if (!organizationId) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Unable to load dashboard data</p>
-          <a href="/login" className="text-blue-600 hover:underline">Please login</a>
+          <p className="text-gray-600 mb-4">No organization found for your account</p>
+          <p className="text-sm text-gray-500">Please contact support or create a new organization</p>
         </div>
       </div>
     );

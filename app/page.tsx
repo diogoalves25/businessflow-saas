@@ -68,7 +68,7 @@ export default function Home() {
               <Link href="/booking" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                 See Demo
               </Link>
-              <Link href="/admin" className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50">
+              <Link href="/login" className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50">
                 Sign In
               </Link>
             </div>
@@ -94,7 +94,7 @@ export default function Home() {
               <Link href="/booking" className="block px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                 See Demo
               </Link>
-              <Link href="/admin" className="block px-3 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50">
+              <Link href="/login" className="block px-3 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50">
                 Sign In
               </Link>
             </div>

@@ -1,28 +1,49 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
+import { createClient } from '@/src/lib/supabase/server';
 
 // GET: Fetch revenue data
 export async function GET() {
   try {
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Get user's organization
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { organization: true }
+    });
+
+    if (!dbUser?.organizationId) {
+      return NextResponse.json(
+        { error: 'No organization found' },
+        { status: 404 }
+      );
+    }
+
+    // Fetch actual revenue data for the organization
     const revenue = await prisma.revenue.findMany({
+      where: {
+        organizationId: dbUser.organizationId
+      },
       orderBy: [
-        { year: 'asc' },
-        { month: 'asc' }
+        { year: 'desc' },
+        { month: 'desc' }
       ],
       take: 6 // Last 6 months
     });
 
-    // If no revenue data exists, return mock data
+    // Return empty array if no data - NO FAKE DATA
     if (revenue.length === 0) {
-      const mockData = [
-        { month: 'Jan', revenue: 42000 },
-        { month: 'Feb', revenue: 45000 },
-        { month: 'Mar', revenue: 43500 },
-        { month: 'Apr', revenue: 48000 },
-        { month: 'May', revenue: 51000 },
-        { month: 'Jun', revenue: 45680 },
-      ];
-      return NextResponse.json(mockData);
+      return NextResponse.json([]);
     }
 
     // Format the data

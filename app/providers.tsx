@@ -1,6 +1,6 @@
 'use client';
 
-import { WhiteLabelProvider } from '@/lib/white-label/theme-provider';
+import { WhiteLabelProvider } from '@/src/lib/white-label/theme-provider';
 import { BusinessProvider } from '@/src/contexts/BusinessContext';
 
 export function Providers({ children }: { children: React.ReactNode }) {

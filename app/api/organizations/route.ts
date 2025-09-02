@@ -3,6 +3,7 @@ import { prisma } from '@/src/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { businessTemplates } from '@/src/lib/business-templates';
 import { NotificationService } from '@/src/lib/notifications';
+import { createClient } from '@/src/lib/supabase/server';
 
 // POST: Create new organization during signup
 export async function POST(request: NextRequest) {
@@ -34,7 +35,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Hash password
+    // Create Supabase auth user first
+    const supabase = await createClient();
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: `${firstName} ${lastName}`,
+          business_name: businessName
+        }
+      }
+    });
+
+    if (authError) {
+      console.error('Supabase auth error:', authError);
+      return NextResponse.json(
+        { error: 'Failed to create authentication account' },
+        { status: 400 }
+      );
+    }
+
+    // Hash password for database storage (as backup)
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create organization and admin user in a transaction
@@ -54,9 +76,10 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // Create admin user
+      // Create admin user with Supabase auth ID
       const user = await tx.user.create({
         data: {
+          id: authData.user?.id || undefined, // Use Supabase user ID if available
           email,
           password: hashedPassword,
           firstName,
@@ -121,20 +144,19 @@ export async function POST(request: NextRequest) {
 // GET: Fetch organization details
 export async function GET(request: NextRequest) {
   try {
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const organizationId = searchParams.get('id');
-    const isDemo = searchParams.get('demo');
-
-    // For demo mode, return the first organization
-    if (isDemo === 'true') {
-      const demoOrg = await prisma.organization.findFirst({
-        where: { businessType: 'CLEANING' },
-        include: {
-          services: true,
-        }
-      });
-      return NextResponse.json(demoOrg);
-    }
 
     if (!organizationId) {
       return NextResponse.json(
@@ -179,6 +201,17 @@ export async function GET(request: NextRequest) {
 // PUT: Update organization settings
 export async function PUT(request: NextRequest) {
   try {
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     const body = await request.json();
     const { id, ...updateData } = body;
 
