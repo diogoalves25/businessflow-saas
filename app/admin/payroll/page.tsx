@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Plus, DollarSign, Users, Calendar, Building, AlertCircle, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePlaidLink } from 'react-plaid-link';
-import { useFeatureAccess } from '@/src/hooks/useFeatureAccess';
+import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { formatCurrency } from '@/lib/utils';
 
 interface BankAccount {

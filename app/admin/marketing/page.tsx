@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Mail, MessageSquare, Users, TrendingUp, Plus, Filter, Download, Send, Clock, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { useOrganization } from '@/src/hooks/useOrganization';
+import { useOrganization } from '@/hooks/useOrganization';
 
 export default function MarketingDashboard() {
   const router = useRouter();
