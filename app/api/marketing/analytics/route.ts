@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/src/lib/supabase/server';
-import { prisma } from '@/src/lib/prisma';
-import { canAccessFeature } from '@/src/lib/feature-gating';
+import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
+import { canAccessFeature } from '@/lib/feature-gating';
 import {
   getCampaignMetrics,
   getContactMetrics,
   getEngagementTimeline,
   getSegmentPerformance,
   getTopCampaigns,
-} from '@/src/lib/marketing/analytics';
+} from '@/lib/marketing/analytics';
 
 export async function GET(request: NextRequest) {
   try {
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 
       default:
         // Return overview analytics
-        const [contacts, timeline, segments, campaigns] = await Promise.all([
+        const [contactsOverview, timelineOverview, segmentsOverview, campaignsOverview] = await Promise.all([
           getContactMetrics(dbUser.organization.id),
           getEngagementTimeline(dbUser.organization.id, 7),
           getSegmentPerformance(dbUser.organization.id),
@@ -87,10 +87,10 @@ export async function GET(request: NextRequest) {
         ]);
 
         return NextResponse.json({
-          contacts,
-          timeline,
-          segments,
-          topCampaigns: campaigns,
+          contacts: contactsOverview,
+          timeline: timelineOverview,
+          segments: segmentsOverview,
+          topCampaigns: campaignsOverview,
         });
     }
   } catch (error) {
