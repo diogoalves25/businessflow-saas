@@ -4,8 +4,9 @@ import { createClient } from '@/src/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
   try {
     // Check authentication
     const supabase = await createClient();
@@ -19,7 +20,7 @@ export async function GET(
     }
 
     // Only allow users to access their own organization
-    if (user.id !== params.id) {
+    if (user.id !== resolvedParams.id) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -28,7 +29,7 @@ export async function GET(
 
     // Get user with organization
     const dbUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       include: {
         organization: {
           include: {

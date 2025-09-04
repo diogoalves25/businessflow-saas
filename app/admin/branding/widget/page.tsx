@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Check, Code, Smartphone, Desktop } from 'lucide-react';
+import { Copy, Check, Code, Smartphone, Monitor, Calendar } from 'lucide-react';
 
 export default function WidgetEmbedPage() {
   const { data: session } = useSession();
@@ -269,7 +269,7 @@ export default function WidgetEmbedPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <Desktop className="h-5 w-5" />
+                    <Monitor className="h-5 w-5" />
                     <h4 className="font-medium">Desktop View</h4>
                   </div>
                   <div className="border rounded-lg p-4 bg-gray-50 h-96 relative">

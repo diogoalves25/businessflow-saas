@@ -200,3 +200,17 @@ export async function sendEmailTemplate(
 ): Promise<EmailResult> {
   return emailService.sendTemplate(templateId, to, data, options);
 }
+
+// Specific email functions
+export async function sendBookingConfirmation(
+  to: string,
+  bookingDetails: {
+    customerName: string;
+    serviceName: string;
+    date: string;
+    time: string;
+    location: string;
+  }
+): Promise<EmailResult> {
+  return sendEmailTemplate('booking-confirmation', to, bookingDetails);
+}

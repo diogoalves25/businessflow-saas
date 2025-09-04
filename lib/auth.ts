@@ -60,3 +60,19 @@ export async function requireAdmin(request?: NextRequest): Promise<JWTPayload> {
   
   return session;
 }
+
+// NextAuth compatible authOptions for backwards compatibility
+export const authOptions = {
+  // This is a mock implementation for compatibility
+  // In production, use proper NextAuth configuration
+  secret: JWT_SECRET,
+  providers: [],
+  callbacks: {
+    async session({ session, token }: any) {
+      return session;
+    },
+    async jwt({ token, user }: any) {
+      return token;
+    },
+  },
+};

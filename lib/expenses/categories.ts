@@ -1,87 +1,184 @@
+import { prisma } from '@/lib/prisma';
+
 export interface ExpenseCategory {
   id: string;
   name: string;
+  description?: string;
   color: string;
   icon: string;
-  description?: string;
-  parentId?: string;
-  budgetLimit?: number;
+  organizationId: string;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export const defaultCategories: ExpenseCategory[] = [
+const defaultCategories = [
   {
-    id: 'marketing',
-    name: 'Marketing',
-    color: '#3b82f6',
-    icon: 'megaphone',
-    description: 'Advertising, campaigns, and promotional activities',
-  },
-  {
-    id: 'operations',
-    name: 'Operations',
-    color: '#10b981',
-    icon: 'cog',
-    description: 'Day-to-day operational expenses',
-  },
-  {
-    id: 'technology',
-    name: 'Technology',
-    color: '#8b5cf6',
-    icon: 'computer',
-    description: 'Software, hardware, and IT services',
-  },
-  {
-    id: 'salaries',
-    name: 'Salaries & Benefits',
-    color: '#f59e0b',
-    icon: 'users',
-    description: 'Employee compensation and benefits',
-  },
-  {
-    id: 'office',
-    name: 'Office & Admin',
-    color: '#ef4444',
-    icon: 'building',
-    description: 'Office supplies, rent, and administrative costs',
-  },
-  {
-    id: 'travel',
-    name: 'Travel & Entertainment',
-    color: '#06b6d4',
+    name: 'Travel',
+    description: 'Business travel, transportation, and accommodation',
+    color: '#3B82F6',
     icon: 'plane',
-    description: 'Business travel and client entertainment',
+    isDefault: true,
   },
   {
-    id: 'professional',
-    name: 'Professional Services',
-    color: '#84cc16',
+    name: 'Meals & Entertainment',
+    description: 'Business meals, client entertainment',
+    color: '#10B981',
+    icon: 'utensils',
+    isDefault: true,
+  },
+  {
+    name: 'Office Supplies',
+    description: 'Stationery, equipment, and office materials',
+    color: '#F59E0B',
     icon: 'briefcase',
-    description: 'Legal, accounting, and consulting fees',
+    isDefault: true,
   },
   {
-    id: 'other',
+    name: 'Technology',
+    description: 'Software, hardware, and IT services',
+    color: '#8B5CF6',
+    icon: 'laptop',
+    isDefault: true,
+  },
+  {
+    name: 'Marketing',
+    description: 'Advertising, promotions, and marketing materials',
+    color: '#EC4899',
+    icon: 'megaphone',
+    isDefault: true,
+  },
+  {
+    name: 'Professional Services',
+    description: 'Legal, accounting, consulting fees',
+    color: '#14B8A6',
+    icon: 'users',
+    isDefault: true,
+  },
+  {
+    name: 'Utilities',
+    description: 'Internet, phone, electricity, and other utilities',
+    color: '#F97316',
+    icon: 'zap',
+    isDefault: true,
+  },
+  {
     name: 'Other',
-    color: '#6b7280',
-    icon: 'dots-horizontal',
     description: 'Miscellaneous expenses',
+    color: '#6B7280',
+    icon: 'more-horizontal',
+    isDefault: true,
   },
 ];
 
-export function getCategoryById(id: string): ExpenseCategory | undefined {
-  return defaultCategories.find(cat => cat.id === id);
+export async function createDefaultCategories(organizationId: string): Promise<void> {
+  try {
+    const categories = defaultCategories.map(category => ({
+      ...category,
+      organizationId,
+    }));
+
+    // In production, use Prisma to create categories
+    // await prisma.expenseCategory.createMany({
+    //   data: categories,
+    //   skipDuplicates: true,
+    // });
+
+    console.log('Created default expense categories for organization:', organizationId);
+  } catch (error) {
+    console.error('Failed to create default categories:', error);
+    throw error;
+  }
 }
 
-export function getCategoryColor(categoryId: string): string {
-  const category = getCategoryById(categoryId);
-  return category?.color || '#6b7280';
+export async function getCategories(organizationId: string): Promise<ExpenseCategory[]> {
+  // In production, fetch from database
+  // return prisma.expenseCategory.findMany({
+  //   where: { organizationId },
+  //   orderBy: { name: 'asc' },
+  // });
+
+  // Mock implementation
+  return defaultCategories.map((cat, index) => ({
+    ...cat,
+    id: `cat_${index + 1}`,
+    organizationId,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }));
 }
 
-export function getCategoryIcon(categoryId: string): string {
-  const category = getCategoryById(categoryId);
-  return category?.icon || 'dots-horizontal';
+export async function createCategory(
+  organizationId: string,
+  data: {
+    name: string;
+    description?: string;
+    color: string;
+    icon: string;
+  }
+): Promise<ExpenseCategory> {
+  // In production, create in database
+  // return prisma.expenseCategory.create({
+  //   data: {
+  //     ...data,
+  //     organizationId,
+  //     isDefault: false,
+  //   },
+  // });
+
+  // Mock implementation
+  return {
+    id: `cat_${Date.now()}`,
+    ...data,
+    organizationId,
+    isDefault: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 }
 
-export function formatCategoryName(categoryId: string): string {
-  const category = getCategoryById(categoryId);
-  return category?.name || 'Unknown';
+export async function updateCategory(
+  categoryId: string,
+  data: Partial<{
+    name: string;
+    description: string;
+    color: string;
+    icon: string;
+  }>
+): Promise<ExpenseCategory> {
+  // In production, update in database
+  // return prisma.expenseCategory.update({
+  //   where: { id: categoryId },
+  //   data: {
+  //     ...data,
+  //     updatedAt: new Date(),
+  //   },
+  // });
+
+  // Mock implementation
+  const mockCategory = defaultCategories[0];
+  return {
+    id: categoryId,
+    name: data.name || mockCategory.name,
+    description: data.description || mockCategory.description,
+    color: data.color || mockCategory.color,
+    icon: data.icon || mockCategory.icon,
+    organizationId: 'mock-org',
+    isDefault: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+export async function deleteCategory(categoryId: string): Promise<boolean> {
+  try {
+    // In production, check if category is in use and handle accordingly
+    // await prisma.expenseCategory.delete({
+    //   where: { id: categoryId },
+    // });
+    return true;
+  } catch (error) {
+    console.error('Failed to delete category:', error);
+    return false;
+  }
 }

@@ -159,3 +159,7 @@ export async function getSignedUrl(
 export async function deleteFile(key: string): Promise<boolean> {
   return s3Client.delete(key);
 }
+
+// Alias exports for backwards compatibility
+export const uploadToS3 = uploadFile;
+export const deleteFromS3 = deleteFile;

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { AutomaticExpenseTracker } from '@/lib/services/automatic-expense-tracking';
 import { canAccessFeature } from '@/lib/feature-gating';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {

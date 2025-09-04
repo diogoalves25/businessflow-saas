@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { uploadToS3, deleteFromS3 } from '@/lib/s3';
 
@@ -19,8 +19,9 @@ const updateExpenseSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.organizationId) {
@@ -47,7 +48,7 @@ export async function PUT(
     // Check if expense exists and belongs to the organization
     const existingExpense = await prisma.expense.findFirst({
       where: {
-        id: params.id,
+        id: resolvedParams.id,
         organizationId: session.user.organizationId
       }
     });
@@ -70,7 +71,7 @@ export async function PUT(
     }
 
     const expense = await prisma.expense.update({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       data: {
         ...validatedData,
         date: new Date(validatedData.date),
@@ -87,8 +88,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.organizationId) {
@@ -98,7 +100,7 @@ export async function DELETE(
     // Check if expense exists and belongs to the organization
     const expense = await prisma.expense.findFirst({
       where: {
-        id: params.id,
+        id: resolvedParams.id,
         organizationId: session.user.organizationId
       }
     });
@@ -113,7 +115,7 @@ export async function DELETE(
     }
 
     await prisma.expense.delete({
-      where: { id: params.id }
+      where: { id: resolvedParams.id }
     });
 
     return NextResponse.json({ success: true });

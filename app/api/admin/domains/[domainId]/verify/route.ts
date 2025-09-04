@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { verifyDomain } from '@/lib/domains/dns-verification';
 import { sslManager } from '@/lib/domains/ssl-manager';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { domainId: string } }
+  { params }: { params: Promise<{ domainId: string }> }
 ) {
+  const resolvedParams = await params;
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.organizationId) {
@@ -18,7 +19,7 @@ export async function POST(
     // Get the domain from settings
     const settings = await prisma.whiteLabelSettings.findFirst({
       where: {
-        id: params.domainId,
+        id: resolvedParams.domainId,
         organizationId: session.user.organizationId,
       },
     });

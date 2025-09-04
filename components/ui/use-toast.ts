@@ -30,3 +30,10 @@ export function useToast() {
   }
   return context
 }
+
+// Export a standalone toast function
+export const toast = (options: Omit<Toast, "id">) => {
+  // This is a simplified implementation
+  // In production, this would interact with the toast provider
+  console.log("Toast:", options)
+}

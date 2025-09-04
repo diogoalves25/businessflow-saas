@@ -4,8 +4,9 @@ import { checkUsageLimits } from '@/src/lib/subscription-check';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { organizationId: string } }
+  { params }: { params: Promise<{ organizationId: string }> }
 ) {
+  const resolvedParams = await params;
   try {
     // Verify user is authenticated
     const supabase = await createClient();
@@ -19,7 +20,7 @@ export async function GET(
     }
 
     // Get usage limits
-    const usage = await checkUsageLimits(params.organizationId);
+    const usage = await checkUsageLimits(resolvedParams.organizationId);
 
     return NextResponse.json(usage);
   } catch (error) {

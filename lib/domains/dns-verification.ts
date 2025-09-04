@@ -1,119 +1,105 @@
 import dns from 'dns/promises';
 
-export interface DNSRecord {
-  type: string;
+export interface DnsRecord {
+  type: 'TXT' | 'CNAME' | 'A' | 'MX';
   name: string;
   value: string;
-  ttl?: number;
+  priority?: number;
 }
 
-export interface VerificationResult {
-  verified: boolean;
-  records: DNSRecord[];
-  errors?: string[];
+export interface DnsInstructions {
+  verificationRecord: DnsRecord;
+  cnameRecord?: DnsRecord;
+  aRecord?: DnsRecord;
 }
 
-export async function generateVerificationToken(domain: string): Promise<string> {
-  // Generate a unique verification token for the domain
+export function generateVerificationToken(domain: string): string {
+  // Generate a unique verification token
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 15);
   return `businessflow-verify-${timestamp}-${random}`;
 }
 
-export async function generateDNSRecords(domain: string, verificationToken: string): Promise<DNSRecord[]> {
-  return [
-    {
+export function generateDnsInstructions(domain: string, verificationToken: string): DnsInstructions {
+  return {
+    verificationRecord: {
       type: 'TXT',
-      name: '_businessflow-verification',
+      name: '_businessflow-verify',
       value: verificationToken,
-      ttl: 300,
     },
-    {
+    cnameRecord: {
       type: 'CNAME',
       name: 'www',
-      value: `${domain}.businessflow.app`,
-      ttl: 3600,
+      value: 'custom-domains.businessflow.app',
     },
-    {
+    aRecord: {
       type: 'A',
       name: '@',
       value: '76.76.21.21', // Vercel's IP
-      ttl: 3600,
     },
-  ];
+  };
 }
 
-export async function verifyDNSRecords(domain: string, expectedToken: string): Promise<VerificationResult> {
-  const errors: string[] = [];
-  const records: DNSRecord[] = [];
-  
+export async function verifyDomain(domain: string, expectedToken: string): Promise<boolean> {
   try {
     // Check TXT record for verification
-    try {
-      const txtRecords = await dns.resolveTxt(`_businessflow-verification.${domain}`);
-      const flatRecords = txtRecords.flat();
-      const isVerified = flatRecords.some(record => record === expectedToken);
-      
-      if (isVerified) {
-        records.push({
-          type: 'TXT',
-          name: '_businessflow-verification',
-          value: expectedToken,
-        });
-      } else {
-        errors.push('Verification TXT record not found or incorrect');
+    const txtRecords = await dns.resolveTxt(`_businessflow-verify.${domain}`);
+    
+    for (const record of txtRecords) {
+      const value = record.join('');
+      if (value === expectedToken) {
+        return true;
       }
-    } catch (error) {
-      errors.push('Failed to resolve TXT record');
     }
-
-    // Check A record
-    try {
-      const aRecords = await dns.resolve4(domain);
-      records.push(...aRecords.map(ip => ({
-        type: 'A',
-        name: '@',
-        value: ip,
-      })));
-    } catch (error) {
-      errors.push('Failed to resolve A record');
-    }
-
-    // Check CNAME for www subdomain
-    try {
-      const cnameRecords = await dns.resolveCname(`www.${domain}`);
-      records.push(...cnameRecords.map(cname => ({
-        type: 'CNAME',
-        name: 'www',
-        value: cname,
-      })));
-    } catch (error) {
-      // It's okay if www CNAME doesn't exist
-    }
-
-    return {
-      verified: errors.length === 0,
-      records,
-      errors: errors.length > 0 ? errors : undefined,
-    };
+    
+    return false;
   } catch (error) {
-    return {
-      verified: false,
-      records: [],
-      errors: ['DNS verification failed: ' + (error as Error).message],
-    };
+    console.error('DNS verification failed:', error);
+    return false;
   }
 }
 
-export async function checkDomainAvailability(domain: string): Promise<boolean> {
+export async function checkDnsConfiguration(domain: string): Promise<{
+  verified: boolean;
+  cnameConfigured: boolean;
+  aRecordConfigured: boolean;
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  let verified = false;
+  let cnameConfigured = false;
+  let aRecordConfigured = false;
+
   try {
-    // Try to resolve the domain
-    await dns.resolve4(domain);
-    // If it resolves, it's already taken
-    return false;
+    // Check verification TXT record
+    const txtRecords = await dns.resolveTxt(`_businessflow-verify.${domain}`);
+    verified = txtRecords.length > 0;
   } catch (error) {
-    // If it fails to resolve, it might be available
-    // Note: This is not a definitive check for domain availability
-    return true;
+    errors.push('Verification TXT record not found');
   }
+
+  try {
+    // Check CNAME record
+    const cnameRecords = await dns.resolveCname(`www.${domain}`);
+    cnameConfigured = cnameRecords.some(record => 
+      record.includes('custom-domains.businessflow.app')
+    );
+  } catch (error) {
+    errors.push('CNAME record not configured for www subdomain');
+  }
+
+  try {
+    // Check A record
+    const aRecords = await dns.resolve4(domain);
+    aRecordConfigured = aRecords.includes('76.76.21.21');
+  } catch (error) {
+    errors.push('A record not configured for root domain');
+  }
+
+  return {
+    verified,
+    cnameConfigured,
+    aRecordConfigured,
+    errors,
+  };
 }

@@ -8,8 +8,9 @@ import { decrypt } from '@/src/lib/encryption';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { campaignId: string } }
+  { params }: { params: Promise<{ campaignId: string }> }
 ) {
+  const resolvedParams = await params;
   try {
     // Verify user is authenticated
     const supabase = await createClient();
@@ -58,7 +59,7 @@ export async function PUT(
     // Get campaign with ad account
     const campaign = await prisma.adCampaign.findFirst({
       where: {
-        id: params.campaignId,
+        id: resolvedParams.campaignId,
         adAccount: {
           organizationId: membership.organization.id,
         },
@@ -99,7 +100,7 @@ export async function PUT(
 
     // Update local status
     await prisma.adCampaign.update({
-      where: { id: params.campaignId },
+      where: { id: resolvedParams.campaignId },
       data: { status },
     });
 

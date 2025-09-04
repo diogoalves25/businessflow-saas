@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 // This catches all API routes under /api/v1/*
 // and applies white label branding to responses
@@ -37,10 +37,11 @@ async function getOrganizationFromRequest(request: NextRequest) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
+  const resolvedParams = await params;
   const organization = await getOrganizationFromRequest(request);
-  const path = params.path.join('/');
+  const path = resolvedParams.path.join('/');
   
   // Route to appropriate handler based on path
   switch (path) {
@@ -65,10 +66,11 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
+  const resolvedParams = await params;
   const organization = await getOrganizationFromRequest(request);
-  const path = params.path.join('/');
+  const path = resolvedParams.path.join('/');
   
   if (!organization) {
     return NextResponse.json(
