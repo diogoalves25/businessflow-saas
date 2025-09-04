@@ -49,8 +49,10 @@ export default function CustomDomainsPage() {
 
   // Check if user has premium subscription
   useEffect(() => {
-    if (session?.user?.subscription?.plan !== 'premium') {
-      router.push('/admin/upgrade');
+    // For now, allow all users to access domain management
+    // In production, check subscription status from database
+    if (!session?.user) {
+      router.push('/login');
     }
   }, [session, router]);
 
