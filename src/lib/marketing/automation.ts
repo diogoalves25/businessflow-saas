@@ -1,5 +1,5 @@
 import { prisma } from '../prisma';
-import { sendEmail } from '../email';
+import { sendEmail } from '@/lib/email';
 import { sendSMS } from '../sms';
 import { renderTemplate } from './templates';
 import { evaluateSegment, Segment } from './segmentation';

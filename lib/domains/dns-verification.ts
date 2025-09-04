@@ -59,6 +59,18 @@ export async function verifyDomain(domain: string, expectedToken: string): Promi
   }
 }
 
+export async function checkDomainAvailability(domain: string): Promise<boolean> {
+  try {
+    // Check if domain has existing DNS records
+    await dns.resolve4(domain);
+    // If we can resolve it, domain exists
+    return true;
+  } catch (error) {
+    // If we can't resolve it, it might be available
+    return false;
+  }
+}
+
 export async function checkDnsConfiguration(domain: string): Promise<{
   verified: boolean;
   cnameConfigured: boolean;

@@ -182,3 +182,17 @@ export async function deleteCategory(categoryId: string): Promise<boolean> {
     return false;
   }
 }
+
+export function getCategoryIcon(categoryId: string): string {
+  const category = defaultCategories.find((cat, index) => 
+    `cat_${index + 1}` === categoryId || cat.name === categoryId
+  );
+  return category?.icon || 'folder';
+}
+
+export function getCategoryColor(categoryId: string): string {
+  const category = defaultCategories.find((cat, index) => 
+    `cat_${index + 1}` === categoryId || cat.name === categoryId
+  );
+  return category?.color || '#6B7280';
+}
