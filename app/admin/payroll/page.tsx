@@ -11,7 +11,7 @@ import { Loader2, Plus, DollarSign, Users, Calendar, Building, AlertCircle, Chec
 import { format } from 'date-fns';
 import { usePlaidLink } from 'react-plaid-link';
 import { useFeatureAccess } from '@/src/hooks/useFeatureAccess';
-import { formatCurrency } from '@/src/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 
 interface BankAccount {
   id: string;

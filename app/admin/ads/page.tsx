@@ -27,7 +27,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { cn } from '@/src/lib/utils';
+import { cn } from '@/lib/utils';
 
 interface AdAccount {
   id: string;

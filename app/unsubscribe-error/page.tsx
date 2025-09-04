@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { XCircle } from 'lucide-react';
 
 export default function UnsubscribeError() {
