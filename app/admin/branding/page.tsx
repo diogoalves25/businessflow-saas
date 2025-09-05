@@ -31,16 +31,17 @@ import {
   Crown,
   Terminal,
 } from 'lucide-react';
-import { canAccessFeature } from '@/lib/feature-gating';
+import { canAccessFeature } from '@/src/lib/feature-gating';
 import { useRouter } from 'next/navigation';
 
 export default function BrandingPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const { settings, refresh } = useWhiteLabel();
-  const [loading, setLoading] = useState(false);
+  const { theme, updateTheme } = useWhiteLabel();
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+  const [hasPremiumAccess, setHasPremiumAccess] = useState(false);
   
   const [formData, setFormData] = useState({
     brandName: '',
@@ -56,26 +57,40 @@ export default function BrandingPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [faviconFile, setFaviconFile] = useState<File | null>(null);
 
-  // Check if user has Premium access
-  const hasPremiumAccess = canAccessFeature(
-    session?.user?.stripePriceId || null,
-    'hasWhiteLabel'
-  );
+  useEffect(() => {
+    // Check Premium access
+    const checkAccess = async () => {
+      if (session?.user?.organizationId) {
+        try {
+          const response = await fetch('/api/organization/' + session.user.organizationId);
+          if (response.ok) {
+            const org = await response.json();
+            setHasPremiumAccess(canAccessFeature(org.stripePriceId || null, 'hasWhiteLabel'));
+          }
+        } catch (error) {
+          console.error('Error checking Premium access:', error);
+        }
+      }
+      setLoading(false);
+    };
+    
+    checkAccess();
+  }, [session]);
 
   useEffect(() => {
-    if (settings) {
+    if (theme) {
       setFormData({
-        brandName: settings.brandName || 'BusinessFlow',
-        primaryColor: settings.primaryColor || '#0066FF',
-        secondaryColor: settings.secondaryColor || '#F3F4F6',
-        customDomain: settings.customDomain || '',
-        emailFromName: settings.emailFromName || '',
-        emailFromAddress: settings.emailFromAddress || '',
-        customCSS: settings.customCSS || '',
-        removeBusinessFlowBranding: settings.removeBusinessFlowBranding || false,
+        brandName: theme.brandName || 'BusinessFlow',
+        primaryColor: theme.primaryColor || '#0066FF',
+        secondaryColor: theme.secondaryColor || '#F3F4F6',
+        customDomain: theme.customDomain || '',
+        emailFromName: theme.emailFromName || '',
+        emailFromAddress: theme.emailFromAddress || '',
+        customCSS: theme.customCSS || '',
+        removeBusinessFlowBranding: theme.removeBusinessFlowBranding || false,
       });
     }
-  }, [settings]);
+  }, [theme]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,7 +121,7 @@ export default function BrandingPage() {
         throw new Error('Failed to save settings');
       }
 
-      await refresh();
+      await updateTheme(formData);
       // Show success message
     } catch (error) {
       console.error('Error saving branding settings:', error);
@@ -115,6 +130,18 @@ export default function BrandingPage() {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!hasPremiumAccess) {
     return (
@@ -256,9 +283,9 @@ export default function BrandingPage() {
                   <div className="space-y-2">
                     <Label htmlFor="logo">Logo</Label>
                     <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                      {settings?.logoUrl ? (
+                      {theme?.logoUrl ? (
                         <img
-                          src={settings.logoUrl}
+                          src={theme.logoUrl}
                           alt="Current logo"
                           className="mx-auto h-20 object-contain mb-2"
                         />
@@ -279,9 +306,9 @@ export default function BrandingPage() {
                   <div className="space-y-2">
                     <Label htmlFor="favicon">Favicon</Label>
                     <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                      {settings?.faviconUrl ? (
+                      {theme?.faviconUrl ? (
                         <img
-                          src={settings.faviconUrl}
+                          src={theme.faviconUrl}
                           alt="Current favicon"
                           className="mx-auto h-8 w-8 object-contain mb-2"
                         />
@@ -434,13 +461,13 @@ export default function BrandingPage() {
 
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium">Domain Status</h4>
-                  {settings?.customDomain ? (
+                  {theme?.customDomain ? (
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="bg-green-50">
                         <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
                         Active
                       </Badge>
-                      <span className="text-sm">{settings.customDomain}</span>
+                      <span className="text-sm">{theme.customDomain}</span>
                     </div>
                   ) : (
                     <Badge variant="secondary">Not configured</Badge>

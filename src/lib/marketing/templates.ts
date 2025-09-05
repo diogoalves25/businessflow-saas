@@ -1,4 +1,4 @@
-import { BusinessType } from '@/src/config/templates';
+import { BusinessType } from '@prisma/client';
 
 export interface EmailTemplate {
   id: string;

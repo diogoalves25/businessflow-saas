@@ -62,17 +62,18 @@ export async function sendMarketingEmail(options: EmailOptions): Promise<boolean
       }
     }
 
+    const headers: Record<string, string> = {};
+    if (options.contactId) {
+      headers['List-Unsubscribe'] = `<${process.env.NEXT_PUBLIC_APP_URL}/api/marketing/unsubscribe?contact=${options.contactId}>`;
+    }
+
     const result = await resend.emails.send({
       from: `${options.fromName || 'BusinessFlow'} <marketing@businessflow.com>`,
       to: options.to,
       subject: options.subject,
       html,
-      reply_to: options.replyTo,
-      headers: {
-        'List-Unsubscribe': options.contactId 
-          ? `<${process.env.NEXT_PUBLIC_APP_URL}/api/marketing/unsubscribe?contact=${options.contactId}>`
-          : undefined,
-      },
+      replyTo: options.replyTo,
+      headers,
     });
 
     // Log activity
@@ -84,9 +85,9 @@ export async function sendMarketingEmail(options: EmailOptions): Promise<boolean
           type: 'sent',
           metadata: { 
             channel: 'email',
-            messageId: result.id,
+            messageId: result.data?.id || '',
             timestamp: new Date().toISOString(),
-          },
+          } as any,
         },
       });
     }
@@ -129,7 +130,7 @@ export async function sendMarketingSMS(options: SMSOptions): Promise<boolean> {
             channel: 'sms',
             messageId: result.sid,
             timestamp: new Date().toISOString(),
-          },
+          } as any,
         },
       });
     }

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/src/lib/supabase/server';
-import { prisma } from '@/src/lib/prisma';
+import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { canAccessFeature } from '@/src/lib/feature-gating';
-import { PREDEFINED_SEGMENTS, getSegmentSize } from '@/src/lib/marketing/segmentation';
+import { PREDEFINED_SEGMENTS, getSegmentSize } from '@/lib/marketing/segmentation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,15 +22,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No organization found' }, { status: 404 });
     }
 
+    const organization = dbUser.organization;
+
     // Check Premium access
-    if (!canAccessFeature(dbUser.organization.stripePriceId, 'hasMarketing')) {
+    if (!canAccessFeature(organization.stripePriceId || null, 'hasMarketingTools')) {
       return NextResponse.json({ error: 'Marketing features require Premium plan' }, { status: 403 });
     }
 
     // Get predefined segments with sizes
     const segments = await Promise.all(
       Object.entries(PREDEFINED_SEGMENTS).map(async ([id, segment]) => {
-        const size = await getSegmentSize(dbUser.organization.id, segment);
+        const size = await getSegmentSize(organization.id, segment);
         return {
           id,
           name: segment.name,

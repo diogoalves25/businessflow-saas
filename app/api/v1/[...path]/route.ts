@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 // and applies white label branding to responses
 
 async function getOrganizationFromRequest(request: NextRequest) {
-  const headersList = headers();
+  const headersList = await headers();
   const host = headersList.get('host') || '';
   const apiKey = headersList.get('x-api-key') || '';
   
@@ -114,6 +114,8 @@ async function handleGetServices(organization: any) {
     _metadata: {
       count: services.length,
       api_version: 'v1',
+      provider: '',
+      powered_by: '',
     },
   };
   
@@ -165,6 +167,8 @@ async function handleGetBookings(organization: any) {
     _metadata: {
       count: bookings.length,
       api_version: 'v1',
+      provider: '',
+      powered_by: '',
     },
   };
   
@@ -195,6 +199,8 @@ async function handleGetAvailability(organization: any) {
     _metadata: {
       timezone: 'America/New_York',
       api_version: 'v1',
+      provider: '',
+      powered_by: '',
     },
   };
   
@@ -229,6 +235,8 @@ async function handleCreateBooking(request: NextRequest, organization: any) {
       },
       _metadata: {
         api_version: 'v1',
+        provider: '',
+        powered_by: '',
       },
     };
     

@@ -51,7 +51,7 @@ export class NotificationService {
     // Send email confirmation (all tiers)
     if (options.to.email && resend && preferences.emailReminders !== false) {
       try {
-        const emailHtml = render(
+        const emailHtml = await render(
           BookingConfirmationEmail({
             businessName: organization.businessName,
             customerName: booking.customerName,
@@ -125,7 +125,7 @@ export class NotificationService {
     // Send email reminder
     if (options.to.email && resend && preferences.emailReminders !== false) {
       try {
-        const emailHtml = render(
+        const emailHtml = await render(
           BookingReminderEmail({
             businessName: organization.businessName,
             customerName: booking.customerName,
@@ -225,7 +225,7 @@ export class NotificationService {
     if (!resend) return;
 
     try {
-      const emailHtml = render(
+      const emailHtml = await render(
         WelcomeEmail({
           businessName: organization.businessName,
           ownerName: organization.ownerName,

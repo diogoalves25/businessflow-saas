@@ -39,8 +39,11 @@ export async function getCampaignMetrics(campaignId: string): Promise<CampaignMe
   
   // Calculate revenue from conversions
   const revenue = activities
-    .filter(a => a.type === 'converted' && a.metadata?.value)
-    .reduce((sum, a) => sum + (a.metadata?.value || 0), 0);
+    .filter(a => a.type === 'converted' && a.metadata && typeof a.metadata === 'object' && 'value' in a.metadata)
+    .reduce((sum, a) => {
+      const metadata = a.metadata as { value?: number };
+      return sum + (metadata?.value || 0);
+    }, 0);
 
   return {
     sent,
@@ -158,11 +161,11 @@ export async function getEngagementTimeline(
     });
 
     const emails = activities.filter(
-      a => a.type === 'sent' && a.metadata?.channel === 'email'
+      a => a.type === 'sent' && a.metadata && typeof a.metadata === 'object' && 'channel' in a.metadata && (a.metadata as any).channel === 'email'
     ).length;
 
     const sms = activities.filter(
-      a => a.type === 'sent' && a.metadata?.channel === 'sms'
+      a => a.type === 'sent' && a.metadata && typeof a.metadata === 'object' && 'channel' in a.metadata && (a.metadata as any).channel === 'sms'
     ).length;
 
     const opens = activities.filter(a => a.type === 'opened').length;
@@ -324,7 +327,7 @@ export async function trackConversion(
   });
 
   if (campaign) {
-    const currentStats = campaign.stats || {};
+    const currentStats = (campaign.stats || {}) as any;
     const updatedStats = {
       ...currentStats,
       conversions: (currentStats.conversions || 0) + 1,

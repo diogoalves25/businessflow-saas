@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get organization ID from cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const organizationId = cookieStore.get('fb_auth_org')?.value;
 
     if (!organizationId) {

@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Plus, DollarSign, Users, Calendar, Building, AlertCircle, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePlaidLink } from 'react-plaid-link';
-import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import { canAccessFeature } from '@/src/lib/feature-gating';
+import { useOrganization } from '@/hooks/useOrganization';
 import { formatCurrency } from '@/lib/utils';
 
 interface BankAccount {
@@ -52,7 +53,7 @@ interface PayrollPeriod {
 
 export default function PayrollPage() {
   const router = useRouter();
-  const { canAccess } = useFeatureAccess();
+  const { organization, loading: orgLoading } = useOrganization();
   const [loading, setLoading] = useState(true);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [connections, setConnections] = useState<BankConnection[]>([]);
@@ -64,10 +65,10 @@ export default function PayrollPage() {
 
   // Check Premium access
   useEffect(() => {
-    if (!canAccess('hasPayroll')) {
+    if (!orgLoading && organization && !canAccessFeature(organization.stripePriceId || null, 'hasPayroll')) {
       router.push('/admin/settings?upgrade=true');
     }
-  }, [canAccess, router]);
+  }, [organization, orgLoading, router]);
 
   // Fetch initial data
   useEffect(() => {

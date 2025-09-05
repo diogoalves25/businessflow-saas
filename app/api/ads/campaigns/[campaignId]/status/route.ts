@@ -24,15 +24,12 @@ export async function PUT(
     }
 
     // Get user's organization and check Premium access
-    const membership = await prisma.userOrganization.findFirst({
-      where: { 
-        userId: user.id,
-        user: { role: 'admin' }
-      },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { organization: true }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization || dbUser.role !== 'admin') {
       return NextResponse.json(
         { error: 'No organization found or not an admin' },
         { status: 404 }
@@ -40,7 +37,7 @@ export async function PUT(
     }
 
     // Check if user has Premium plan
-    if (!canAccessFeature(membership.organization.stripePriceId, 'hasAds')) {
+    if (!canAccessFeature(dbUser.organization.stripePriceId, 'hasAds')) {
       return NextResponse.json(
         { error: 'Ads management requires Premium plan' },
         { status: 403 }
@@ -61,7 +58,7 @@ export async function PUT(
       where: {
         id: resolvedParams.campaignId,
         adAccount: {
-          organizationId: membership.organization.id,
+          organizationId: dbUser.organization.id,
         },
       },
       include: {
@@ -85,13 +82,10 @@ export async function PUT(
 
     // Update on platform
     try {
-      const accessToken = decrypt(campaign.adAccount.accessToken);
-      
       if (campaign.adAccount.platform === 'facebook') {
-        await updateFacebookCampaignStatus(campaign.platformId, status, accessToken);
+        await updateFacebookCampaignStatus(resolvedParams.campaignId, status);
       } else if (campaign.adAccount.platform === 'google') {
-        const refreshToken = campaign.adAccount.refreshToken ? decrypt(campaign.adAccount.refreshToken) : undefined;
-        await updateGoogleCampaignStatus(campaign.platformId, status, accessToken, refreshToken);
+        await updateGoogleCampaignStatus(resolvedParams.campaignId, status);
       }
     } catch (platformError) {
       console.error('Platform update error:', platformError);

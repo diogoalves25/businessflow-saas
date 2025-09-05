@@ -26,11 +26,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (organization) {
-        await createDefaultCategories(
-          session.user.organizationId, 
-          organization.businessType,
-          prisma
-        );
+        await createDefaultCategories(session.user.organizationId);
 
         // Fetch the newly created categories
         const newCategories = await prisma.expenseCategory.findMany({

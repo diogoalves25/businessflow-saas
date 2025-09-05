@@ -129,6 +129,10 @@ export default function PricingPage() {
 
       // Redirect to Stripe Checkout
       const stripe = await stripePromise;
+      if (!stripe) {
+        throw new Error('Stripe failed to load');
+      }
+      
       const { error: stripeError } = await stripe.redirectToCheckout({
         sessionId,
       });

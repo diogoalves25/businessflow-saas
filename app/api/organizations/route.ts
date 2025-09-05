@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/src/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { businessTemplates } from '@/src/lib/business-templates';
 import { NotificationService } from '@/src/lib/notifications';
-import { createClient } from '@/src/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 
 // POST: Create new organization during signup
 export async function POST(request: NextRequest) {
@@ -110,8 +110,9 @@ export async function POST(request: NextRequest) {
     // Send welcome email to new organization
     try {
       await NotificationService.sendWelcomeEmail(email, {
-        name: businessName,
-        businessType,
+        id: result.organization.id,
+        businessName,
+        ownerName: `${firstName} ${lastName}`,
         plan: 'basic' // New signups start on basic plan
       });
     } catch (error) {

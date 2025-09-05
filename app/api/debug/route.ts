@@ -13,12 +13,12 @@ export async function GET() {
       VERCEL_ENV: process.env.VERCEL_ENV,
     },
     supabase: {
-      status: 'unknown',
-      error: null
+      status: 'unknown' as string,
+      error: null as string | null
     },
     auth: {
-      user: null,
-      error: null
+      user: null as any,
+      error: null as string | null
     }
   };
 

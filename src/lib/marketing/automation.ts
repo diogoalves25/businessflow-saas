@@ -276,7 +276,7 @@ async function logAutomationActivity(
       campaignId: `automation_${automationId}`,
       contactId,
       type: 'automation_action',
-      metadata: action,
+      metadata: JSON.parse(JSON.stringify(action)),
     },
   });
 }
@@ -337,7 +337,7 @@ async function sendCampaign(campaign: any) {
             campaignId: campaign.id,
             contactId: contact.id,
             type: 'sent',
-            metadata: { channel: 'email' },
+            metadata: { channel: 'email' } as any,
           },
         });
       }
@@ -354,7 +354,7 @@ async function sendCampaign(campaign: any) {
             campaignId: campaign.id,
             contactId: contact.id,
             type: 'sent',
-            metadata: { channel: 'sms' },
+            metadata: { channel: 'sms' } as any,
           },
         });
       }

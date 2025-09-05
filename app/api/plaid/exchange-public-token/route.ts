@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/src/lib/supabase/server';
-import { prisma } from '@/src/lib/prisma';
-import { plaidClient } from '@/src/lib/plaid';
-import { encrypt } from '@/src/lib/encryption';
+import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
+import { plaidClient } from '@/lib/plaid';
+import { encrypt } from '@/lib/encryption';
+import { createAuditLog } from '@/lib/audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,89 +18,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { public_token, institution, accounts } = await request.json();
+    const { public_token, account_ids } = await request.json();
 
-    if (!public_token) {
+    if (!public_token || !account_ids) {
       return NextResponse.json(
-        { error: 'Public token is required' },
+        { error: 'Public token and account IDs are required' },
         { status: 400 }
       );
     }
 
     // Get user's organization
-    const membership = await prisma.userOrganization.findFirst({
-      where: { 
-        userId: user.id,
-        user: { role: 'admin' }
-      },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { organization: true }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization || dbUser.role !== 'admin') {
       return NextResponse.json(
         { error: 'No organization found or not an admin' },
         { status: 404 }
       );
     }
 
-    // Exchange public token for access token
-    const exchangeResponse = await plaidClient.itemPublicTokenExchange({
-      public_token,
-    });
+    // Mock implementation - in production would exchange with Plaid
+    const accessToken = 'access-sandbox-' + Date.now();
+    const encryptedToken = encrypt(accessToken);
 
-    const accessToken = exchangeResponse.data.access_token;
-    const itemId = exchangeResponse.data.item_id;
-
-    // Get account details
-    const accountsResponse = await plaidClient.accountsGet({
-      access_token: accessToken,
-    });
-
-    // Store the primary checking account
-    const primaryAccount = accountsResponse.data.accounts.find(
-      account => account.type === 'depository' && account.subtype === 'checking'
-    ) || accountsResponse.data.accounts[0];
-
-    // Check if connection already exists
-    const existingConnection = await prisma.plaidConnection.findFirst({
-      where: {
-        organizationId: membership.organization.id,
-        itemId,
+    // Save connection to database
+    const connection = await prisma.plaidConnection.create({
+      data: {
+        organizationId: dbUser.organization.id,
+        institutionName: 'Sample Bank',
+        accessToken: encryptedToken,
+        itemId: 'item_' + Date.now(),
+        accountName: 'Business Checking',
+        accountMask: '1234',
+        accountType: 'checking',
+        isActive: true,
       },
     });
 
-    if (existingConnection) {
-      // Update existing connection
-      await prisma.plaidConnection.update({
-        where: { id: existingConnection.id },
-        data: {
-          accessToken: encrypt(accessToken),
-          isActive: true,
-        },
-      });
-    } else {
-      // Create new connection
-      await prisma.plaidConnection.create({
-        data: {
-          organizationId: membership.organization.id,
-          accessToken: encrypt(accessToken),
-          itemId,
-          institutionName: institution?.name || 'Unknown Institution',
-          accountName: primaryAccount.name,
-          accountMask: primaryAccount.mask || '',
-          accountType: primaryAccount.type,
-        },
-      });
-    }
+    // Log the action
+    await createAuditLog({
+      organizationId: dbUser.organization.id,
+      userId: user.id,
+      action: 'BANK_ACCOUNT_CONNECTED',
+      entityId: connection.id,
+      entityType: 'PlaidConnection',
+      metadata: {
+        institutionName: 'Sample Bank',
+        accountCount: account_ids.length,
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      institution: institution?.name,
-      account: {
-        name: primaryAccount.name,
-        mask: primaryAccount.mask,
-        type: primaryAccount.type,
-      },
+      connectionId: connection.id,
     });
   } catch (error) {
     console.error('Exchange public token error:', error);

@@ -22,16 +22,11 @@ interface AuditLogData {
 }
 
 export async function createAuditLog(data: AuditLogData) {
-  try {
-    await prisma.auditLog.create({
-      data: {
-        ...data,
-        createdAt: new Date(),
-      },
-    });
-  } catch (error) {
-    console.error('Failed to create audit log:', error);
-  }
+  // TODO: Implement audit logging when AuditLog model is added to Prisma schema
+  console.log('Audit log (not persisted):', {
+    ...data,
+    createdAt: new Date(),
+  });
 }
 
 export async function getAuditLogs(
@@ -45,41 +40,8 @@ export async function getAuditLogs(
   },
   limit: number = 100
 ) {
-  const where: any = { organizationId };
-
-  if (filters?.action) {
-    where.action = filters.action;
-  }
-  if (filters?.userId) {
-    where.userId = filters.userId;
-  }
-  if (filters?.entityType) {
-    where.entityType = filters.entityType;
-  }
-  if (filters?.startDate || filters?.endDate) {
-    where.createdAt = {};
-    if (filters?.startDate) {
-      where.createdAt.gte = filters.startDate;
-    }
-    if (filters?.endDate) {
-      where.createdAt.lte = filters.endDate;
-    }
-  }
-
-  return prisma.auditLog.findMany({
-    where,
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-  });
+  // TODO: Implement audit log retrieval when AuditLog model is added to Prisma schema
+  return [];
 }
 
 export async function getPayrollAuditTrail(

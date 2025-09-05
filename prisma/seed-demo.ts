@@ -11,21 +11,27 @@ async function main() {
   const sparkleClean = await prisma.organization.create({
     data: {
       name: 'Sparkle Clean Services',
-      businessType: 'cleaning_services',
+      businessType: 'CLEANING',
+      businessName: 'Sparkle Clean Services',
+      email: 'contact@sparkleclean.demo',
     },
   });
 
   const quickFixPlumbing = await prisma.organization.create({
     data: {
       name: 'QuickFix Plumbing',
-      businessType: 'plumbing',
+      businessType: 'PLUMBING',
+      businessName: 'QuickFix Plumbing',
+      email: 'contact@quickfix.demo',
     },
   });
 
   const brightDental = await prisma.organization.create({
     data: {
       name: 'Bright Dental Care',
-      businessType: 'dental_clinic',
+      businessType: 'DENTAL',
+      businessName: 'Bright Dental Care',
+      email: 'contact@brightdental.demo',
     },
   });
 
@@ -39,16 +45,18 @@ async function main() {
       firstName: 'Sarah',
       lastName: 'Johnson',
       phone: '(555) 123-4567',
-      role: 'owner',
+      role: 'admin',
       organizationId: sparkleClean.id,
-      subscription: {
-        create: {
-          plan: 'premium',
-          status: 'active',
-          currentPeriodEnd: addDays(new Date(), 30),
-          cancelAtPeriodEnd: false,
-        },
-      },
+    },
+  });
+
+  // Update organization with premium subscription
+  await prisma.organization.update({
+    where: { id: sparkleClean.id },
+    data: {
+      stripePriceId: process.env.STRIPE_PRICE_PREMIUM_ID || 'price_premium',
+      subscriptionStatus: 'active',
+      subscriptionEndsAt: addDays(new Date(), 30),
     },
   });
 
@@ -59,16 +67,18 @@ async function main() {
       firstName: 'Mike',
       lastName: 'Roberts',
       phone: '(555) 234-5678',
-      role: 'owner',
+      role: 'admin',
       organizationId: quickFixPlumbing.id,
-      subscription: {
-        create: {
-          plan: 'growth',
-          status: 'active',
-          currentPeriodEnd: addDays(new Date(), 30),
-          cancelAtPeriodEnd: false,
-        },
-      },
+    },
+  });
+
+  // Update organization with growth subscription
+  await prisma.organization.update({
+    where: { id: quickFixPlumbing.id },
+    data: {
+      stripePriceId: process.env.STRIPE_PRICE_GROWTH_ID || 'price_growth',
+      subscriptionStatus: 'active',
+      subscriptionEndsAt: addDays(new Date(), 30),
     },
   });
 
@@ -79,16 +89,18 @@ async function main() {
       firstName: 'Dr. Emily',
       lastName: 'Chen',
       phone: '(555) 345-6789',
-      role: 'owner',
+      role: 'admin',
       organizationId: brightDental.id,
-      subscription: {
-        create: {
-          plan: 'starter',
-          status: 'active',
-          currentPeriodEnd: addDays(new Date(), 30),
-          cancelAtPeriodEnd: false,
-        },
-      },
+    },
+  });
+
+  // Update organization with starter subscription
+  await prisma.organization.update({
+    where: { id: brightDental.id },
+    data: {
+      stripePriceId: process.env.STRIPE_PRICE_STARTER_ID || 'price_starter',
+      subscriptionStatus: 'active',
+      subscriptionEndsAt: addDays(new Date(), 30),
     },
   });
 
@@ -332,11 +344,10 @@ async function main() {
     await prisma.expense.create({
       data: {
         organizationId: sparkleClean.id,
-        categoryId: expenseCategories[expense.categoryIndex].id,
+        category: expenseCategories[expense.categoryIndex].name,
         description: expense.name,
         amount: expense.amount,
         date: subDays(new Date(), expense.daysAgo),
-        status: 'paid',
       },
     });
   }
@@ -345,7 +356,7 @@ async function main() {
   await prisma.budget.create({
     data: {
       organizationId: sparkleClean.id,
-      categoryId: expenseCategories[0].id,
+      category: expenseCategories[0].name,
       amount: 500,
       period: 'monthly',
       startDate: startOfMonth(new Date()),
@@ -360,12 +371,16 @@ async function main() {
       name: 'Spring Cleaning Special',
       type: 'email',
       status: 'active',
-      startDate: subDays(new Date(), 7),
-      endDate: addDays(new Date(), 23),
-      budget: 500,
-      targetAudience: 'existing_customers',
-      content: '20% off all deep cleaning services this spring!',
-      metrics: {
+      targetAudience: {
+        segment: 'existing_customers',
+        filters: { lastBooking: { withinDays: 90 } },
+      },
+      content: {
+        subject: '20% off Spring Cleaning!',
+        body: '20% off all deep cleaning services this spring!',
+      },
+      sentAt: subDays(new Date(), 7),
+      stats: {
         sent: 250,
         opened: 125,
         clicked: 45,
@@ -381,12 +396,14 @@ async function main() {
       name: 'Emergency Service Reminder',
       type: 'sms',
       status: 'completed',
-      startDate: subDays(new Date(), 30),
-      endDate: subDays(new Date(), 25),
-      budget: 200,
-      targetAudience: 'all_customers',
-      content: 'Save our number! QuickFix Plumbing is available 24/7 for emergencies.',
-      metrics: {
+      targetAudience: {
+        segment: 'all_customers',
+      },
+      content: {
+        message: 'Save our number! QuickFix Plumbing is available 24/7 for emergencies.',
+      },
+      sentAt: subDays(new Date(), 30),
+      stats: {
         sent: 150,
         delivered: 145,
         clicked: 30,
@@ -409,31 +426,32 @@ async function main() {
   });
 
   // Create locations for QuickFix Plumbing (Growth feature)
-  await prisma.location.create({
-    data: {
-      organizationId: quickFixPlumbing.id,
-      name: 'Main Office',
-      address: '123 Plumbing Way',
-      city: 'Dallas',
-      state: 'TX',
-      zipCode: '75201',
-      phone: '(555) 234-5678',
-      isMain: true,
-    },
-  });
+  // Note: Location model not implemented in schema
+  // await prisma.location.create({
+  //   data: {
+  //     organizationId: quickFixPlumbing.id,
+  //     name: 'Main Office',
+  //     address: '123 Plumbing Way',
+  //     city: 'Dallas',
+  //     state: 'TX',
+  //     zipCode: '75201',
+  //     phone: '(555) 234-5678',
+  //     isMain: true,
+  //   },
+  // });
 
-  await prisma.location.create({
-    data: {
-      organizationId: quickFixPlumbing.id,
-      name: 'North Dallas Branch',
-      address: '456 Service Rd',
-      city: 'Plano',
-      state: 'TX',
-      zipCode: '75024',
-      phone: '(555) 234-5679',
-      isMain: false,
-    },
-  });
+  // await prisma.location.create({
+  //   data: {
+  //     organizationId: quickFixPlumbing.id,
+  //     name: 'North Dallas Branch',
+  //     address: '456 Service Rd',
+  //     city: 'Plano',
+  //     state: 'TX',
+  //     zipCode: '75024',
+  //     phone: '(555) 234-5679',
+  //     isMain: false,
+  //   },
+  // });
 
   // Create some reviews
   const reviewTexts = [
@@ -445,22 +463,23 @@ async function main() {
   ];
 
   // Add reviews for completed bookings
-  const completedBookings = await prisma.booking.findMany({
-    where: { status: 'completed' },
-    take: 20,
-  });
+  // Note: Review model not implemented in schema
+  // const completedBookings = await prisma.booking.findMany({
+  //   where: { status: 'completed' },
+  //   take: 20,
+  // });
 
-  for (const booking of completedBookings) {
-    await prisma.review.create({
-      data: {
-        bookingId: booking.id,
-        customerId: booking.customerId,
-        organizationId: booking.organizationId,
-        rating: Math.floor(Math.random() * 2) + 4, // 4-5 stars
-        comment: reviewTexts[Math.floor(Math.random() * reviewTexts.length)],
-      },
-    });
-  }
+  // for (const booking of completedBookings) {
+  //   await prisma.review.create({
+  //     data: {
+  //       bookingId: booking.id,
+  //       customerId: booking.customerId,
+  //       organizationId: booking.organizationId,
+  //       rating: Math.floor(Math.random() * 2) + 4, // 4-5 stars
+  //       comment: reviewTexts[Math.floor(Math.random() * reviewTexts.length)],
+  //     },
+  //   });
+  // }
 
   console.log('✅ Demo data seed completed!');
 }

@@ -9,6 +9,7 @@ interface Organization {
   slug: string;
   logo?: string;
   subscriptionTier: 'free' | 'basic' | 'professional' | 'enterprise';
+  stripePriceId?: string | null;
   features: string[];
   settings?: Record<string, any>;
 }

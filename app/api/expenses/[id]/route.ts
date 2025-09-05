@@ -67,7 +67,8 @@ export async function PUT(
       // Upload new receipt
       const buffer = await receipt.arrayBuffer();
       const filename = `expenses/${session.user.organizationId}/${Date.now()}-${receipt.name}`;
-      receiptUrl = await uploadToS3(Buffer.from(buffer), filename, receipt.type);
+      const uploadResult = await uploadToS3(filename, Buffer.from(buffer), receipt.type);
+      receiptUrl = uploadResult.url;
     }
 
     const expense = await prisma.expense.update({

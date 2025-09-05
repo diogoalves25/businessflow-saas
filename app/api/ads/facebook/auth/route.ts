@@ -18,15 +18,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's organization and check Premium access
-    const membership = await prisma.userOrganization.findFirst({
-      where: { 
-        userId: user.id,
-        user: { role: 'admin' }
-      },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { organization: true }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization || dbUser.role !== 'admin') {
       return NextResponse.json(
         { error: 'No organization found or not an admin' },
         { status: 404 }
@@ -34,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user has Premium plan
-    if (!canAccessFeature(membership.organization.stripePriceId, 'hasAds')) {
+    if (!canAccessFeature(dbUser.organization.stripePriceId, 'hasAds')) {
       return NextResponse.json(
         { error: 'Ads management requires Premium plan' },
         { status: 403 }
@@ -43,11 +40,11 @@ export async function GET(request: NextRequest) {
 
     // Store organization ID in session for callback
     const response = NextResponse.redirect(
-      getFacebookOAuthUrl(membership.organization.id)
+      getFacebookOAuthUrl(dbUser.organization.id)
     );
 
     // Set secure cookie with organization ID
-    response.cookies.set('fb_auth_org', membership.organization.id, {
+    response.cookies.set('fb_auth_org', dbUser.organization.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

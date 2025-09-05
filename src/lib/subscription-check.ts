@@ -1,13 +1,13 @@
 import { createClient } from '@/src/lib/supabase/server';
 import { prisma } from '@/src/lib/prisma';
-import { getPlanFromPriceId, canAccessFeature, PlanType, checkBookingLimit, checkTeamMemberLimit } from './feature-gating';
+import { getPlanFromPriceId, canAccessFeature, PlanType, checkBookingLimit, checkTeamMemberLimit, PLAN_LIMITS } from './feature-gating';
 
 export interface SubscriptionInfo {
   organizationId: string;
   plan: PlanType;
   subscriptionStatus: string | null;
   isTrialing: boolean;
-  canAccess: (feature: keyof typeof import('./feature-gating').PLAN_LIMITS['starter']) => boolean;
+  canAccess: (feature: keyof typeof PLAN_LIMITS['starter']) => boolean;
 }
 
 export async function getSubscriptionInfo(userId?: string): Promise<SubscriptionInfo | null> {
@@ -21,16 +21,16 @@ export async function getSubscriptionInfo(userId?: string): Promise<Subscription
     }
 
     // Get user's organization
-    const membership = await prisma.userOrganization.findFirst({
-      where: { userId },
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
       include: {
         organization: true
       }
     });
 
-    if (!membership) return null;
+    if (!user || !user.organization) return null;
 
-    const organization = membership.organization;
+    const organization = user.organization;
     const plan = getPlanFromPriceId(organization.stripePriceId);
     const isTrialing = organization.subscriptionStatus === 'trialing' || 
                       (organization.trialEndsAt ? new Date(organization.trialEndsAt) > new Date() : false);
@@ -49,7 +49,7 @@ export async function getSubscriptionInfo(userId?: string): Promise<Subscription
 }
 
 export async function requireSubscription(
-  feature?: keyof typeof import('./feature-gating').PLAN_LIMITS['starter']
+  feature?: keyof typeof PLAN_LIMITS['starter']
 ): Promise<SubscriptionInfo> {
   const subscriptionInfo = await getSubscriptionInfo();
   
@@ -75,7 +75,7 @@ export async function checkUsageLimits(organizationId: string) {
           }
         }
       },
-      userOrganizations: true,
+      users: true,
     }
   });
 
@@ -85,17 +85,17 @@ export async function checkUsageLimits(organizationId: string) {
 
   const plan = getPlanFromPriceId(organization.stripePriceId);
   const currentBookings = organization.bookings.length;
-  const currentMembers = organization.userOrganizations.length;
+  const currentMembers = organization.users.length;
 
   return {
     bookings: {
       current: currentBookings,
-      limit: import('./feature-gating').PLAN_LIMITS[plan].maxBookingsPerMonth,
+      limit: PLAN_LIMITS[plan].maxBookingsPerMonth,
       canAddMore: checkBookingLimit(plan, currentBookings),
     },
     teamMembers: {
       current: currentMembers,
-      limit: import('./feature-gating').PLAN_LIMITS[plan].maxTeamMembers,
+      limit: PLAN_LIMITS[plan].maxTeamMembers,
       canAddMore: checkTeamMemberLimit(plan, currentMembers),
     },
   };

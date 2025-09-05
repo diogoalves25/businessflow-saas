@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useBusiness } from '@/src/contexts/BusinessContext';
 import { 
   Card, 
   CardContent, 
@@ -57,6 +58,7 @@ interface Deduction {
 
 export default function TaxPrepPage() {
   const { data: session } = useSession();
+  const { businessType } = useBusiness();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [taxSummary, setTaxSummary] = useState<any>(null);
   const [deductions, setDeductions] = useState<Deduction[]>([]);
@@ -98,7 +100,7 @@ export default function TaxPrepPage() {
         {
           type: 'Form 8829',
           name: 'Home Office Deduction',
-          status: session?.user?.businessType === 'MOBILE_DETAILING' ? 'pending' : 'missing',
+          status: businessType === 'MOBILE_DETAILING' ? 'pending' : 'missing',
           description: 'Business use of home'
         },
         {
@@ -110,7 +112,7 @@ export default function TaxPrepPage() {
         {
           type: 'Mileage Log',
           name: 'Vehicle Usage Records',
-          status: ['MOBILE_DETAILING', 'LAWN_CARE', 'PLUMBING'].includes(session?.user?.businessType || '') ? 'pending' : 'missing',
+          status: ['MOBILE_DETAILING', 'LAWN_CARE', 'PLUMBING'].includes(businessType || '') ? 'pending' : 'missing',
           description: 'Business mileage documentation'
         },
       ]);
@@ -378,7 +380,7 @@ export default function TaxPrepPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {getTaxChecklist(session?.user?.businessType || 'GENERAL').map((item, index) => (
+              {getTaxChecklist(businessType || 'GENERAL').map((item, index) => (
                 <div key={index} className="flex items-start gap-3">
                   <div className="mt-0.5">
                     <FileCheck className="h-4 w-4 text-primary" />

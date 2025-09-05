@@ -7,9 +7,13 @@ interface WhiteLabelTheme {
   secondaryColor: string;
   logoUrl: string | null;
   faviconUrl: string | null;
-  businessName: string;
+  brandName: string;
   customFont: string | null;
-  customCss: string | null;
+  customCSS: string | null;
+  customDomain: string | null;
+  emailFromName: string | null;
+  emailFromAddress: string | null;
+  removeBusinessFlowBranding: boolean;
 }
 
 interface WhiteLabelContextValue {
@@ -26,9 +30,13 @@ const defaultTheme: WhiteLabelTheme = {
   secondaryColor: '#1e293b',
   logoUrl: null,
   faviconUrl: null,
-  businessName: 'BusinessFlow',
+  brandName: 'BusinessFlow',
   customFont: null,
-  customCss: null,
+  customCSS: null,
+  customDomain: null,
+  emailFromName: null,
+  emailFromAddress: null,
+  removeBusinessFlowBranding: false,
 };
 
 export function WhiteLabelProvider({ children }: { children: React.ReactNode }) {

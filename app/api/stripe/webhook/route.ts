@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
             stripeSubscriptionId: subscription.id,
             stripePriceId: subscription.items.data[0].price.id,
             subscriptionStatus: subscription.status,
-            subscriptionEndsAt: subscription.current_period_end 
-              ? new Date(subscription.current_period_end * 1000)
+            subscriptionEndsAt: (subscription as any).current_period_end 
+              ? new Date((subscription as any).current_period_end * 1000)
               : null,
           },
         });
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
           where: { stripeCustomerId: subscription.customer as string },
           data: {
             subscriptionStatus: 'canceled',
-            subscriptionEndsAt: new Date(subscription.current_period_end * 1000),
+            subscriptionEndsAt: new Date((subscription as any).current_period_end * 1000),
           },
         });
         break;
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
         
-        if (invoice.subscription) {
+        if ((invoice as any).subscription) {
           await prisma.organization.update({
             where: { stripeCustomerId: invoice.customer as string },
             data: {
@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
               stripeSubscriptionId: subscription.id,
               stripePriceId: subscription.items.data[0].price.id,
               subscriptionStatus: subscription.status,
-              trialEndsAt: subscription.trial_end 
-                ? new Date(subscription.trial_end * 1000)
+              trialEndsAt: (subscription as any).trial_end 
+                ? new Date((subscription as any).trial_end * 1000)
                 : null,
-              subscriptionEndsAt: new Date(subscription.current_period_end * 1000),
+              subscriptionEndsAt: new Date((subscription as any).current_period_end * 1000),
             },
           });
         }

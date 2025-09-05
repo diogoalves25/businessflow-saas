@@ -28,9 +28,7 @@ async function importFromGoogleAds(organizationId: string): Promise<number> {
       description: 'Google Ads - Search Campaign',
       amount: 250.50,
       vendor: 'Google Ads',
-      source: 'GOOGLE_ADS' as const,
-      sourceId: 'campaign_' + Date.now(),
-      tags: ['marketing', 'ads', 'google'],
+      category: 'Advertising',
     },
   ];
 
@@ -60,9 +58,7 @@ async function importFromFacebookAds(organizationId: string): Promise<number> {
       description: 'Facebook Ads - Social Campaign',
       amount: 175.25,
       vendor: 'Facebook Ads',
-      source: 'FACEBOOK_ADS' as const,
-      sourceId: 'fb_campaign_' + Date.now(),
-      tags: ['marketing', 'ads', 'facebook', 'social'],
+      category: 'Advertising',
     },
   ];
 
@@ -92,11 +88,9 @@ async function importFromPayroll(organizationId: string): Promise<number> {
       description: 'Employee Payroll - Biweekly',
       amount: 3500.00,
       vendor: 'Payroll System',
-      source: 'PAYROLL' as const,
-      sourceId: 'payroll_' + Date.now(),
-      tags: ['payroll', 'labor', 'recurring'],
-      isRecurring: true,
-      recurringFrequency: 'BIWEEKLY' as const,
+      category: 'Payroll',
+      recurring: true,
+      recurringPeriod: 'biweekly',
     },
   ];
 
@@ -126,9 +120,7 @@ async function importFromTwilio(organizationId: string): Promise<number> {
       description: 'SMS Credits - Monthly',
       amount: 85.00,
       vendor: 'Twilio',
-      source: 'TWILIO' as const,
-      sourceId: 'twilio_' + Date.now(),
-      tags: ['communication', 'sms', 'marketing'],
+      category: 'Communication',
     },
   ];
 
@@ -158,9 +150,7 @@ async function importFromSendGrid(organizationId: string): Promise<number> {
       description: 'Email Service - Monthly',
       amount: 45.00,
       vendor: 'SendGrid',
-      source: 'SENDGRID' as const,
-      sourceId: 'sendgrid_' + Date.now(),
-      tags: ['communication', 'email', 'marketing'],
+      category: 'Communication',
     },
   ];
 
@@ -197,14 +187,11 @@ export async function getExpenseTotalsByCategory(
         lte: endDate,
       },
     },
-    include: {
-      category: true,
-    },
   });
 
   const totals = expenses.reduce((acc, expense) => {
-    const categoryName = expense.category?.name || 'Uncategorized';
-    acc[categoryName] = (acc[categoryName] || 0) + expense.amount.toNumber();
+    const categoryName = expense.category || 'Uncategorized';
+    acc[categoryName] = (acc[categoryName] || 0) + expense.amount;
     return acc;
   }, {} as Record<string, number>);
 
@@ -242,17 +229,16 @@ export async function getExpenseTrends(
         month: monthKey,
         total: 0,
         count: 0,
-        bySource: {} as Record<string, number>,
+        byCategory: {} as Record<string, number>,
       };
     }
     
-    acc[monthKey].total += expense.amount.toNumber();
+    acc[monthKey].total += expense.amount;
     acc[monthKey].count += 1;
     
-    if (expense.source) {
-      acc[monthKey].bySource[expense.source] = 
-        (acc[monthKey].bySource[expense.source] || 0) + expense.amount.toNumber();
-    }
+    const category = expense.category || 'Uncategorized';
+    acc[monthKey].byCategory[category] = 
+      (acc[monthKey].byCategory[category] || 0) + expense.amount;
     
     return acc;
   }, {} as Record<string, any>);

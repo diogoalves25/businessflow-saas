@@ -113,11 +113,11 @@ export default function FinancialReportsPage() {
     }
   };
 
-  const exportReport = async (type: 'pl' | 'tax' | 'full', format: 'pdf' | 'csv') => {
+  const exportReport = async (type: 'pl' | 'tax' | 'full', exportFormat: 'pdf' | 'csv') => {
     try {
       const params = new URLSearchParams({
         type,
-        format,
+        format: exportFormat,
         period: selectedPeriod,
         year: selectedYear.toString()
       });
@@ -128,7 +128,7 @@ export default function FinancialReportsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${type}-report-${format(new Date(), 'yyyy-MM-dd')}.${format}`;
+      a.download = `${type}-report-${format(new Date(), 'yyyy-MM-dd')}.${exportFormat}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

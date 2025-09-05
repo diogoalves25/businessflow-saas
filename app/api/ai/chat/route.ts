@@ -17,7 +17,7 @@ Be professional, friendly, and concise. Always maintain a helpful tone.`;
   
   const serviceList = services.map(s => `- ${s.name}: $${s.basePrice}, ${s.duration} minutes`).join('\n');
   
-  const businessPrompts: Record<BusinessType, string> = {
+  const businessPrompts: Record<BusinessType | string, string> = {
     DENTAL: `${basePrompt}
     
 Specialized knowledge: You can help with dental appointment scheduling, insurance questions, and basic dental care advice.
@@ -45,15 +45,6 @@ ${serviceList}
 Common questions: scheduling frequency, cleaning products used, pricing, special requests, eco-friendly options.
 Emphasize our attention to detail and satisfaction guarantee.`,
 
-    ELECTRICAL: `${basePrompt}
-    
-Specialized knowledge: You can help with electrical service scheduling, safety questions, and basic troubleshooting.
-Our services include:
-${serviceList}
-
-Common questions: emergency services, safety concerns, code compliance, energy efficiency, scheduling.
-Always emphasize safety first and recommend professional help for electrical issues.`,
-
     LANDSCAPING: `${basePrompt}
     
 Specialized knowledge: You can help schedule landscaping services, provide plant care advice, and discuss design options.
@@ -72,7 +63,7 @@ ${serviceList}
 Common questions: maintenance schedules, emergency repairs, energy savings, system upgrades, indoor air quality.
 Emphasize the importance of regular maintenance for system longevity.`,
 
-    AUTOMOTIVE: `${basePrompt}
+    AUTO_REPAIR: `${basePrompt}
     
 Specialized knowledge: You can help schedule auto services, explain maintenance needs, and answer basic car care questions.
 Our services include:
@@ -81,23 +72,14 @@ ${serviceList}
 Common questions: maintenance schedules, repair estimates, warranty information, emergency services, preventive care.
 Can provide basic maintenance tips while encouraging professional service.`,
 
-    CONSULTING: `${basePrompt}
+    TUTORING: `${basePrompt}
     
-Specialized knowledge: You can help schedule consultations, explain our services, and answer questions about our expertise.
+Specialized knowledge: You can help schedule tutoring sessions, explain our teaching methods, and answer questions about subjects covered.
 Our services include:
 ${serviceList}
 
-Common questions: consultation process, pricing structure, areas of expertise, project timelines, success stories.
-Focus on understanding client needs and demonstrating value.`,
-
-    MEDICAL: `${basePrompt}
-    
-Specialized knowledge: You can help with appointment scheduling, office policies, and general health information.
-Our services include:
-${serviceList}
-
-Common questions: appointment scheduling, insurance, office hours, urgent care availability, patient portal access.
-Always recommend consulting with a healthcare provider for medical advice.`,
+Common questions: scheduling, subject areas, teaching methods, progress tracking, group vs individual sessions.
+Focus on personalized learning and student success.`,
 
     FITNESS: `${basePrompt}
     
@@ -117,16 +99,16 @@ ${serviceList}
 Common questions: service scheduling, treatment details, product recommendations, pricing, special offers.
 Focus on helping clients feel confident and beautiful.`,
 
-    LEGAL: `${basePrompt}
+    CATERING: `${basePrompt}
     
-Specialized knowledge: You can help schedule consultations, explain our practice areas, and answer general questions.
+Specialized knowledge: You can help with catering orders, menu planning, and event coordination.
 Our services include:
 ${serviceList}
 
-Common questions: consultation scheduling, practice areas, fee structures, case timelines, document requirements.
-Always clarify that you cannot provide legal advice, only general information.`,
+Common questions: menu options, dietary restrictions, pricing, delivery, event planning, minimum orders.
+Focus on making their event special and stress-free.`,
 
-    OTHER: `${basePrompt}
+    DEFAULT: `${basePrompt}
     
 Our services include:
 ${serviceList}
@@ -134,7 +116,7 @@ ${serviceList}
 I can help you schedule appointments, answer questions about our services, and provide general information.`
   };
 
-  return businessPrompts[businessType] || businessPrompts.OTHER;
+  return businessPrompts[businessType] || businessPrompts.DEFAULT;
 };
 
 export async function POST(request: NextRequest) {
@@ -151,8 +133,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's organization and check Premium access
-    const membership = await prisma.userOrganization.findFirst({
-      where: { userId: user.id },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { 
         organization: {
           include: {
@@ -162,7 +144,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization) {
       return NextResponse.json(
         { error: 'No organization found' },
         { status: 404 }
@@ -170,7 +152,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has Premium plan
-    if (!canAccessFeature(membership.organization.stripePriceId, 'hasAIChat')) {
+    if (!canAccessFeature(dbUser.organization.stripePriceId, 'hasAIOptimization')) {
       return NextResponse.json(
         { error: 'AI Chat requires Premium plan' },
         { status: 403 }
@@ -195,9 +177,9 @@ export async function POST(request: NextRequest) {
 
     // Get system prompt with business context
     const systemPrompt = getSystemPrompt(
-      membership.organization.businessType,
-      membership.organization.businessName,
-      membership.organization.services
+      dbUser.organization.businessType,
+      dbUser.organization.businessName,
+      dbUser.organization.services
     );
 
     // Create messages array with system prompt
@@ -220,7 +202,7 @@ export async function POST(request: NextRequest) {
     if (userMessage && userMessage.role === 'user') {
       await prisma.chatMessage.create({
         data: {
-          organizationId: membership.organization.id,
+          organizationId: dbUser.organization.id,
           userId: user.id,
           sessionId: sessionId || 'default',
           role: 'user',
@@ -234,6 +216,9 @@ export async function POST(request: NextRequest) {
     const encoder = new TextEncoder();
     let assistantMessage = '';
     let tokenCount = 0;
+    
+    // Capture organization ID outside the async callback
+    const organizationId = dbUser.organization.id;
 
     const readableStream = new ReadableStream({
       async start(controller) {
@@ -251,7 +236,7 @@ export async function POST(request: NextRequest) {
           if (assistantMessage) {
             await prisma.chatMessage.create({
               data: {
-                organizationId: membership.organization.id,
+                organizationId,
                 userId: user.id,
                 sessionId: sessionId || 'default',
                 role: 'assistant',
@@ -262,7 +247,7 @@ export async function POST(request: NextRequest) {
 
             // Update organization's token usage for cost tracking
             await prisma.organization.update({
-              where: { id: membership.organization.id },
+              where: { id: organizationId },
               data: {
                 aiTokensUsed: {
                   increment: tokenCount
@@ -313,12 +298,12 @@ export async function GET(request: NextRequest) {
     const sessionId = searchParams.get('sessionId') || 'default';
 
     // Get user's organization
-    const membership = await prisma.userOrganization.findFirst({
-      where: { userId: user.id },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { organization: true }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization) {
       return NextResponse.json(
         { error: 'No organization found' },
         { status: 404 }
@@ -328,7 +313,7 @@ export async function GET(request: NextRequest) {
     // Get chat history
     const messages = await prisma.chatMessage.findMany({
       where: {
-        organizationId: membership.organization.id,
+        organizationId: dbUser.organization.id,
         sessionId,
         userId: user.id
       },

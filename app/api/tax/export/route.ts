@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { startOfYear, endOfYear, format } from 'date-fns';
 import JSZip from 'jszip';
@@ -9,9 +8,25 @@ import { parse } from 'json2csv';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.organizationId) {
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user's organization
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { organization: true }
+    });
+
+    if (!dbUser?.organization || dbUser.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'No organization found or not an admin' },
+        { status: 404 }
+      );
     }
 
     const searchParams = request.nextUrl.searchParams;
@@ -22,19 +37,21 @@ export async function GET(request: NextRequest) {
 
     // Fetch organization details
     const organization = await prisma.organization.findUnique({
-      where: { id: session.user.organizationId },
+      where: { id: dbUser.organization.id },
       select: { 
         businessName: true, 
         businessType: true,
-        businessAddress: true,
-        taxId: true,
+        address: true,
+        city: true,
+        state: true,
+        zipCode: true,
       }
     });
 
     // Fetch all expenses for the year
     const expenses = await prisma.expense.findMany({
       where: {
-        organizationId: session.user.organizationId,
+        organizationId: dbUser.organization.id,
         date: {
           gte: startDate,
           lte: endDate,
@@ -46,7 +63,7 @@ export async function GET(request: NextRequest) {
     // Fetch revenue data
     const bookings = await prisma.booking.aggregate({
       where: {
-        organizationId: session.user.organizationId,
+        organizationId: dbUser.organization.id,
         status: 'completed',
         date: {
           gte: startDate,
@@ -191,11 +208,15 @@ For IRS purposes, these digital receipts are valid documentation of business exp
     zip.file('receipts-info.txt', receiptsInfo);
 
     // 5. Add tax summary
+    const businessAddress = organization?.address && organization?.city && organization?.state && organization?.zipCode 
+      ? `${organization.address}, ${organization.city}, ${organization.state} ${organization.zipCode}`
+      : '';
+    
     const taxSummary = `TAX SUMMARY FOR ${year}
 ${organization?.businessName}
-Tax ID: ${organization?.taxId || 'Not provided'}
+Tax ID: Not provided
 Business Type: ${organization?.businessType}
-${organization?.businessAddress || ''}
+${businessAddress}
 
 INCOME SUMMARY
 ==============
@@ -226,7 +247,7 @@ Note: These are estimates only. Consult with a tax professional for accurate cal
     // Generate ZIP file
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
 
-    return new NextResponse(zipBuffer, {
+    return new NextResponse(zipBuffer as any, {
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="tax-package-${year}.zip"`,

@@ -29,14 +29,14 @@ export async function POST(
     }
 
     // Verify domain DNS records
-    const verificationResult = await verifyDomain(
+    const isVerified = await verifyDomain(
       settings.customDomain,
       session.user.organizationId
     );
 
-    if (verificationResult.verified) {
+    if (isVerified) {
       // Domain is verified, check SSL certificate
-      const sslStatus = await sslManager.getCertificateStatus(settings.customDomain);
+      const sslStatus = await sslManager.checkCertificateStatus(settings.customDomain);
       
       // If SSL is not active, request a new certificate
       if (!sslStatus || sslStatus.status !== 'active') {
@@ -44,7 +44,7 @@ export async function POST(
       }
     }
 
-    return NextResponse.json(verificationResult);
+    return NextResponse.json({ verified: isVerified });
   } catch (error) {
     console.error('Error verifying domain:', error);
     return NextResponse.json(

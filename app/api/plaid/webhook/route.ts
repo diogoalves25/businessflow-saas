@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
 import { plaidClient } from '@/src/lib/plaid';
+import { createAuditLog } from '@/lib/audit';
 import crypto from 'crypto';
 
 // Verify webhook signature
@@ -149,13 +150,11 @@ async function handleItemWebhook(
 async function handleItemError(itemId: string, error: any) {
   const { error_code, error_message } = error;
   
-  // Update connection status
+  // Deactivate connection on error
   await prisma.plaidConnection.updateMany({
     where: { itemId },
     data: {
-      error: error_code,
-      errorMessage: error_message,
-      lastError: new Date(),
+      isActive: false,
     },
   });
 
@@ -165,27 +164,27 @@ async function handleItemError(itemId: string, error: any) {
   });
 
   if (connection) {
-    await prisma.auditLog.create({
-      data: {
-        organizationId: connection.organizationId,
-        userId: 'system',
-        action: 'PLAID_ERROR',
-        entityId: connection.id,
-        entityType: 'PlaidConnection',
-        metadata: {
-          error_code,
-          error_message,
-        },
+    await createAuditLog({
+      organizationId: connection.organizationId,
+      userId: 'system',
+      action: 'PLAID_ERROR',
+      entityId: connection.id,
+      entityType: 'PlaidConnection',
+      metadata: {
+        error_code,
+        error_message,
       },
     });
   }
 }
 
 async function markConnectionForReauth(itemId: string) {
+  // For now, just deactivate connections that need reauth
+  // In production, you'd track this state separately
   await prisma.plaidConnection.updateMany({
     where: { itemId },
     data: {
-      needsReauth: true,
+      isActive: false,
     },
   });
 }
@@ -195,8 +194,6 @@ async function deactivateConnection(itemId: string) {
     where: { itemId },
     data: {
       isActive: false,
-      error: 'USER_PERMISSION_REVOKED',
-      errorMessage: 'User revoked access to their bank account',
     },
   });
 }

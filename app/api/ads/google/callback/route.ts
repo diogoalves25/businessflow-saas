@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get organization ID from cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const organizationId = cookieStore.get('google_auth_org')?.value;
 
     if (!organizationId) {
@@ -31,10 +31,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Exchange code for tokens
-    const { access_token, refresh_token } = await exchangeGoogleCode(code);
+    const tokens = await exchangeGoogleCode(code);
+    
+    if (!tokens.access_token) {
+      return NextResponse.redirect('/admin/ads?error=invalid_token');
+    }
 
     // Get ad accounts
-    const accounts = await getGoogleAdAccounts(access_token, refresh_token);
+    const accounts = await getGoogleAdAccounts(tokens.access_token, tokens.refresh_token || undefined);
 
     if (!accounts || accounts.length === 0) {
       return NextResponse.redirect('/admin/ads?error=no_ad_accounts');
@@ -43,10 +47,10 @@ export async function GET(request: NextRequest) {
     // Save the first ad account (in production, let user choose)
     const account = accounts[0];
     await saveGoogleAdAccount(organizationId, {
-      accountId: account.customer.id,
-      accountName: account.customer.descriptiveName,
-      accessToken: access_token,
-      refreshToken: refresh_token,
+      accountId: account.id,
+      accountName: account.name,
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token || '',
     });
 
     // Clear the cookie

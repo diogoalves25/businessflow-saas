@@ -31,12 +31,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's organization
-    const membership = await prisma.userOrganization.findFirst({
-      where: { userId: user.id },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { organization: true }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization) {
       return NextResponse.json(
         { error: 'No organization found' },
         { status: 404 }
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if plan includes SMS
-    const plan = getPlanFromPriceId(membership.organization.stripePriceId);
+    const plan = getPlanFromPriceId(dbUser.organization.stripePriceId);
     if (!canAccessFeature(plan, 'hasMarketingTools')) {
       return NextResponse.json(
         { error: 'SMS notifications require Growth plan or higher' },
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     // Send test SMS
     const message = await twilioClient.messages.create({
-      body: `${membership.organization.businessName}: This is a test SMS notification. Your booking reminders will look similar to this. Reply STOP to unsubscribe.`,
+      body: `${dbUser.organization.businessName}: This is a test SMS notification. Your booking reminders will look similar to this. Reply STOP to unsubscribe.`,
       from: process.env.TWILIO_PHONE_NUMBER,
       to: phone
     });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/src/lib/supabase/server';
-import { prisma } from '@/src/lib/prisma';
-import { plaidClient, PLAID_PRODUCTS, PLAID_COUNTRY_CODES } from '@/src/lib/plaid';
+import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
+import { plaidClient } from '@/lib/plaid';
 import { canAccessFeature } from '@/src/lib/feature-gating';
 
 export async function POST(request: NextRequest) {
@@ -18,15 +18,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's organization and check Premium access
-    const membership = await prisma.userOrganization.findFirst({
-      where: { 
-        userId: user.id,
-        user: { role: 'admin' }
-      },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { organization: true }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization || dbUser.role !== 'admin') {
       return NextResponse.json(
         { error: 'No organization found or not an admin' },
         { status: 404 }
@@ -34,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has Premium plan
-    if (!canAccessFeature(membership.organization.stripePriceId, 'hasPayroll')) {
+    if (!canAccessFeature(dbUser.organization.stripePriceId || null, 'hasPayroll')) {
       return NextResponse.json(
         { error: 'Payroll automation requires Premium plan' },
         { status: 403 }
@@ -42,19 +39,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create a link token for the user
-    const linkTokenResponse = await plaidClient.linkTokenCreate({
-      user: {
-        client_user_id: user.id,
-      },
-      client_name: membership.organization.businessName,
-      products: PLAID_PRODUCTS,
-      country_codes: PLAID_COUNTRY_CODES,
-      language: 'en',
-      webhook: process.env.PLAID_WEBHOOK_URL,
+    const linkTokenResponse = await plaidClient.createLinkToken({
+      user: user.id,
+      clientName: dbUser.organization.businessName,
     });
 
     return NextResponse.json({
-      link_token: linkTokenResponse.data.link_token,
+      link_token: linkTokenResponse.link_token
     });
   } catch (error) {
     console.error('Create link token error:', error);

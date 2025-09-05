@@ -37,12 +37,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's organization
-    const membership = await prisma.userOrganization.findFirst({
-      where: { userId: user.id },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { organization: true }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization) {
       return NextResponse.json(
         { error: 'No organization found' },
         { status: 404 }
@@ -50,9 +50,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Send test email
-    const emailHtml = render(
+    const emailHtml = await render(
       BookingConfirmationEmail({
-        businessName: membership.organization.businessName,
+        businessName: dbUser.organization.businessName,
         customerName: 'Test Customer',
         serviceName: 'Test Service',
         scheduledDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     );
 
     const result = await resend.emails.send({
-      from: `${membership.organization.businessName} <notifications@businessflow.com>`,
+      from: `${dbUser.organization.businessName} <notifications@businessflow.com>`,
       to: email,
       subject: `Test Email - Booking Confirmation`,
       html: emailHtml,
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      messageId: result.id,
+      messageId: result.data?.id || 'unknown',
       message: 'Test email sent successfully'
     });
   } catch (error) {

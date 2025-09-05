@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check Premium access
-    if (!canAccessFeature(dbUser.organization.stripePriceId, 'hasMarketing')) {
+    if (!canAccessFeature(dbUser.organization.stripePriceId || null, 'hasMarketingTools')) {
       return NextResponse.json({ error: 'Marketing features require Premium plan' }, { status: 403 });
     }
 
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check Premium access
-    if (!canAccessFeature(dbUser.organization.stripePriceId, 'hasMarketing')) {
+    if (!canAccessFeature(dbUser.organization.stripePriceId || null, 'hasMarketingTools')) {
       return NextResponse.json({ error: 'Marketing features require Premium plan' }, { status: 403 });
     }
 

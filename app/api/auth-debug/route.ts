@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Get current session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -13,7 +13,7 @@ export async function GET() {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     // Check cookies
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const authCookies = cookieStore.getAll().filter(cookie => 
       cookie.name.includes('supabase') || 
       cookie.name.includes('auth')

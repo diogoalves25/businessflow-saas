@@ -12,11 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Mail, MessageSquare, Users, TrendingUp, Plus, Filter, Download, Send, Clock, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useOrganization } from '@/hooks/useOrganization';
+import { canAccessFeature } from '@/src/lib/feature-gating';
 
 export default function MarketingDashboard() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { organization, hasFeature } = useOrganization();
+  const { organization } = useOrganization();
   const [activeTab, setActiveTab] = useState('campaigns');
   const [campaigns, setCampaigns] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -33,13 +34,13 @@ export default function MarketingDashboard() {
     if (!authLoading && !user) {
       router.push('/login');
     } else if (user && organization) {
-      if (!hasFeature('hasMarketing')) {
+      if (!canAccessFeature(organization.stripePriceId || null, 'hasMarketingTools')) {
         router.push('/admin?upgrade=marketing');
       } else {
         loadMarketingData();
       }
     }
-  }, [user, authLoading, organization, hasFeature, router]);
+  }, [user, authLoading, organization, router]);
 
   const loadMarketingData = async () => {
     try {
@@ -434,7 +435,7 @@ export default function MarketingDashboard() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      Welcome to {{businessName}}! We're thrilled to have you...
+                      Welcome to {'{{businessName}}'}! We're thrilled to have you...
                     </p>
                   </CardContent>
                 </Card>
@@ -474,7 +475,7 @@ export default function MarketingDashboard() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      Hi {{firstName}}, reminder about your appointment tomorrow at {{time}}...
+                      Hi {'{{firstName}}'}, reminder about your appointment tomorrow at {'{{time}}'}...
                     </p>
                   </CardContent>
                 </Card>
@@ -486,7 +487,7 @@ export default function MarketingDashboard() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      {{businessName}}: Limited time! Get {{discount}}% off...
+                      {'{{businessName}}'}: Limited time! Get {'{{discount}}'}% off...
                     </p>
                   </CardContent>
                 </Card>
@@ -498,7 +499,7 @@ export default function MarketingDashboard() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      Welcome to {{businessName}}! Save this number for easy booking...
+                      Welcome to {'{{businessName}}'}! Save this number for easy booking...
                     </p>
                   </CardContent>
                 </Card>

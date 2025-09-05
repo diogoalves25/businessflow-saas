@@ -14,55 +14,55 @@ export interface Segment {
   logic: 'AND' | 'OR';
 }
 
-export const PREDEFINED_SEGMENTS = {
+export const PREDEFINED_SEGMENTS: Record<string, Segment> = {
   active_customers: {
     name: 'Active Customers',
     rules: [
-      { field: 'lastBooking', operator: 'greater_than', value: subDays(new Date(), 30) },
-      { field: 'subscribed', operator: 'equals', value: true }
+      { field: 'lastBooking', operator: 'greater_than' as const, value: subDays(new Date(), 30) },
+      { field: 'subscribed', operator: 'equals' as const, value: true }
     ],
-    logic: 'AND' as const
+    logic: 'AND'
   },
   lapsed_customers: {
     name: 'Lapsed Customers',
     rules: [
-      { field: 'lastBooking', operator: 'less_than', value: subDays(new Date(), 60) },
-      { field: 'lastBooking', operator: 'greater_than', value: subDays(new Date(), 180) },
-      { field: 'subscribed', operator: 'equals', value: true }
+      { field: 'lastBooking', operator: 'less_than' as const, value: subDays(new Date(), 60) },
+      { field: 'lastBooking', operator: 'greater_than' as const, value: subDays(new Date(), 180) },
+      { field: 'subscribed', operator: 'equals' as const, value: true }
     ],
-    logic: 'AND' as const
+    logic: 'AND'
   },
   new_customers: {
     name: 'New Customers',
     rules: [
-      { field: 'createdAt', operator: 'greater_than', value: subDays(new Date(), 7) },
-      { field: 'totalSpent', operator: 'less_than', value: 100 }
+      { field: 'createdAt', operator: 'greater_than' as const, value: subDays(new Date(), 7) },
+      { field: 'totalSpent', operator: 'less_than' as const, value: 100 }
     ],
-    logic: 'AND' as const
+    logic: 'AND'
   },
   high_value: {
     name: 'High Value Customers',
     rules: [
-      { field: 'totalSpent', operator: 'greater_than', value: 500 },
-      { field: 'subscribed', operator: 'equals', value: true }
+      { field: 'totalSpent', operator: 'greater_than' as const, value: 500 },
+      { field: 'subscribed', operator: 'equals' as const, value: true }
     ],
-    logic: 'AND' as const
+    logic: 'AND'
   },
   email_only: {
     name: 'Email Only',
     rules: [
-      { field: 'emailOptIn', operator: 'equals', value: true },
-      { field: 'smsOptIn', operator: 'equals', value: false }
+      { field: 'emailOptIn', operator: 'equals' as const, value: true },
+      { field: 'smsOptIn', operator: 'equals' as const, value: false }
     ],
-    logic: 'AND' as const
+    logic: 'AND'
   },
   sms_only: {
     name: 'SMS Only',
     rules: [
-      { field: 'emailOptIn', operator: 'equals', value: false },
-      { field: 'smsOptIn', operator: 'equals', value: true }
+      { field: 'emailOptIn', operator: 'equals' as const, value: false },
+      { field: 'smsOptIn', operator: 'equals' as const, value: true }
     ],
-    logic: 'AND' as const
+    logic: 'AND'
   }
 };
 

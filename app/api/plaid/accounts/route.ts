@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/src/lib/supabase/server';
-import { prisma } from '@/src/lib/prisma';
-import { plaidClient } from '@/src/lib/plaid';
-import { decrypt } from '@/src/lib/encryption';
+import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
+import { plaidClient } from '@/lib/plaid';
+import { decrypt } from '@/lib/encryption';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,15 +18,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's organization
-    const membership = await prisma.userOrganization.findFirst({
-      where: { 
-        userId: user.id,
-        user: { role: 'admin' }
-      },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { organization: true }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization || dbUser.role !== 'admin') {
       return NextResponse.json(
         { error: 'No organization found or not an admin' },
         { status: 404 }
@@ -36,9 +33,9 @@ export async function GET(request: NextRequest) {
     // Get all active Plaid connections
     const connections = await prisma.plaidConnection.findMany({
       where: {
-        organizationId: membership.organization.id,
+        organizationId: dbUser.organization.id,
         isActive: true,
-      },
+      }
     });
 
     // Fetch account details for each connection
@@ -114,14 +111,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get user's organization
-    const membership = await prisma.userOrganization.findFirst({
-      where: { 
-        userId: user.id,
-        user: { role: 'admin' }
-      },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { organization: true }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization || dbUser.role !== 'admin') {
       return NextResponse.json(
         { error: 'No organization found or not an admin' },
         { status: 404 }
@@ -132,11 +127,11 @@ export async function DELETE(request: NextRequest) {
     await prisma.plaidConnection.update({
       where: {
         id: connectionId,
-        organizationId: membership.organizationId,
+        organizationId: dbUser.organization.id,
       },
       data: {
         isActive: false,
-      },
+      }
     });
 
     return NextResponse.json({ success: true });

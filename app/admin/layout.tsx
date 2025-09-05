@@ -33,7 +33,7 @@ function AdminLayoutContent({
   const router = useRouter();
   const pathname = usePathname();
   const { businessName, template } = useBusiness();
-  const { settings } = useWhiteLabel();
+  const { theme } = useWhiteLabel();
   const supabase = createClient();
 
   // Get current user

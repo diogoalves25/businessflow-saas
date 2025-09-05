@@ -74,10 +74,11 @@ export function useDashboardData(organizationId?: string) {
           })
           .reduce((sum: number, b: {finalPrice: number}) => sum + b.finalPrice, 0);
           
-        const avgRating = completedBookings
-          .filter((b: {rating?: number}) => b.rating)
-          .reduce((sum: number, b: {rating?: number}, _: number, arr: {rating?: number}[]) => 
-            sum + b.rating / arr.length, 0) || 4.5;
+        const ratedBookings = completedBookings.filter((b: {rating?: number}) => b.rating !== undefined && b.rating !== null);
+        const avgRating = ratedBookings.length > 0
+          ? ratedBookings.reduce((sum: number, b: {rating?: number}) => 
+              sum + (b.rating || 0), 0) / ratedBookings.length
+          : 4.5;
 
         setStats({
           totalBookings: bookings.length,
@@ -138,6 +139,7 @@ export function useDashboardData(organizationId?: string) {
 
         const technicianArray = Array.from(technicianStats.values())
           .map((tech: {
+            id: string;
             name: string;
             jobs: number;
             revenue: number;

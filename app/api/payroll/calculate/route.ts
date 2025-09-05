@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/src/lib/supabase/server';
-import { prisma } from '@/src/lib/prisma';
+import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { canAccessFeature } from '@/src/lib/feature-gating';
-import { calculatePayrollForPeriod, getCurrentPayPeriod } from '@/src/lib/payroll';
+import { calculatePayrollForPeriod, getCurrentPayPeriod } from '@/lib/payroll';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,15 +18,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's organization and check Premium access
-    const membership = await prisma.userOrganization.findFirst({
-      where: { 
-        userId: user.id,
-        user: { role: 'admin' }
-      },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { organization: true }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization || dbUser.role !== 'admin') {
       return NextResponse.json(
         { error: 'No organization found or not an admin' },
         { status: 404 }
@@ -34,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user has Premium plan
-    if (!canAccessFeature(membership.organization.stripePriceId, 'hasPayroll')) {
+    if (!canAccessFeature(dbUser.organization.stripePriceId || null, 'hasPayroll')) {
       return NextResponse.json(
         { error: 'Payroll automation requires Premium plan' },
         { status: 403 }
@@ -46,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate payroll for the period
     const calculations = await calculatePayrollForPeriod(
-      membership.organization.id,
+      dbUser.organization.id,
       period.start,
       period.end
     );

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
-import { canAccessFeature } from '@/lib/feature-gating';
+import { canAccessFeature } from '@/src/lib/feature-gating';
 import {
   getCampaignMetrics,
   getContactMetrics,
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check Premium access
-    if (!canAccessFeature(dbUser.organization.stripePriceId, 'hasMarketing')) {
+    if (!canAccessFeature(dbUser.organization.stripePriceId || null, 'hasMarketingTools')) {
       return NextResponse.json({ error: 'Marketing features require Premium plan' }, { status: 403 });
     }
 

@@ -1,21 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { uploadToS3 } from '@/lib/s3';
-import { canAccessFeature } from '@/lib/feature-gating';
+import { canAccessFeature } from '@/src/lib/feature-gating';
 
 // GET /api/white-label/settings
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.organizationId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user's organization
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { organization: true }
+    });
+
+    if (!dbUser?.organization) {
+      return NextResponse.json({ error: 'No organization found' }, { status: 404 });
     }
 
     const settings = await prisma.whiteLabelSettings.findUnique({
       where: {
-        organizationId: session.user.organizationId,
+        organizationId: dbUser.organization.id,
       },
     });
 
@@ -23,7 +34,7 @@ export async function GET(request: NextRequest) {
     if (!settings) {
       return NextResponse.json({
         id: 'default',
-        organizationId: session.user.organizationId,
+        organizationId: dbUser.organization.id,
         brandName: 'BusinessFlow',
         primaryColor: '#0066FF',
         secondaryColor: '#F3F4F6',
@@ -44,18 +55,25 @@ export async function GET(request: NextRequest) {
 // POST /api/white-label/settings
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.organizationId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user has Premium access
-    const organization = await prisma.organization.findUnique({
-      where: { id: session.user.organizationId },
-      select: { stripePriceId: true }
+    // Get user's organization
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { organization: true }
     });
 
-    if (!canAccessFeature(organization?.stripePriceId || null, 'hasWhiteLabel')) {
+    if (!dbUser?.organization) {
+      return NextResponse.json({ error: 'No organization found' }, { status: 404 });
+    }
+
+    // Check if user has Premium access
+    if (!canAccessFeature(dbUser.organization.stripePriceId || null, 'hasWhiteLabel')) {
       return NextResponse.json(
         { error: 'This feature requires a Premium subscription' },
         { status: 403 }
@@ -81,21 +99,23 @@ export async function POST(request: NextRequest) {
     const logoFile = formData.get('logo') as File;
     if (logoFile && logoFile.size > 0) {
       const buffer = Buffer.from(await logoFile.arrayBuffer());
-      const key = `white-label/${session.user.organizationId}/logo-${Date.now()}.${logoFile.name.split('.').pop()}`;
-      logoUrl = await uploadToS3(buffer, key, logoFile.type);
+      const key = `white-label/${dbUser.organization.id}/logo-${Date.now()}.${logoFile.name.split('.').pop()}`;
+      const result = await uploadToS3(key, buffer, logoFile.type);
+      logoUrl = result.url;
     }
 
     const faviconFile = formData.get('favicon') as File;
     if (faviconFile && faviconFile.size > 0) {
       const buffer = Buffer.from(await faviconFile.arrayBuffer());
-      const key = `white-label/${session.user.organizationId}/favicon-${Date.now()}.${faviconFile.name.split('.').pop()}`;
-      faviconUrl = await uploadToS3(buffer, key, faviconFile.type);
+      const key = `white-label/${dbUser.organization.id}/favicon-${Date.now()}.${faviconFile.name.split('.').pop()}`;
+      const result = await uploadToS3(key, buffer, faviconFile.type);
+      faviconUrl = result.url;
     }
 
     // Check if settings already exist
     const existingSettings = await prisma.whiteLabelSettings.findUnique({
       where: {
-        organizationId: session.user.organizationId,
+        organizationId: dbUser.organization.id,
       },
     });
 
@@ -126,7 +146,7 @@ export async function POST(request: NextRequest) {
       settings = await prisma.whiteLabelSettings.create({
         data: {
           ...data,
-          organizationId: session.user.organizationId,
+          organizationId: dbUser.organization.id,
         },
       });
     }

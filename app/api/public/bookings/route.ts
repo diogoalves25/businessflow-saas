@@ -86,9 +86,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send confirmation email with white label settings
+    // Send confirmation email
     try {
-      await sendBookingConfirmation(booking, booking.organization.whiteLabelSettings);
+      await sendBookingConfirmation(
+        booking.customer.email,
+        {
+          customerName: `${booking.customer.firstName} ${booking.customer.lastName}`,
+          serviceName: booking.service.name,
+          date: booking.date.toLocaleDateString(),
+          time: booking.time,
+          location: `${booking.address}, ${booking.city}, ${booking.state} ${booking.zipCode}`,
+        }
+      );
     } catch (emailError) {
       console.error('Error sending confirmation email:', emailError);
       // Don't fail the booking if email fails

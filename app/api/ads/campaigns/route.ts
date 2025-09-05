@@ -18,15 +18,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's organization and check Premium access
-    const membership = await prisma.userOrganization.findFirst({
-      where: { 
-        userId: user.id,
-        user: { role: 'admin' }
-      },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { organization: true }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization || dbUser.role !== 'admin') {
       return NextResponse.json(
         { error: 'No organization found or not an admin' },
         { status: 404 }
@@ -34,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user has Premium plan
-    if (!canAccessFeature(membership.organization.stripePriceId, 'hasAds')) {
+    if (!canAccessFeature(dbUser.organization.stripePriceId, 'hasAds')) {
       return NextResponse.json(
         { error: 'Ads management requires Premium plan' },
         { status: 403 }
@@ -73,7 +70,7 @@ export async function GET(request: NextRequest) {
     const campaigns = await prisma.adCampaign.findMany({
       where: {
         adAccount: {
-          organizationId: membership.organization.id,
+          organizationId: dbUser.organization.id,
         },
         createdAt: {
           gte: startDate,
@@ -107,7 +104,7 @@ export async function GET(request: NextRequest) {
     const prevCampaigns = await prisma.adCampaign.findMany({
       where: {
         adAccount: {
-          organizationId: membership.organization.id,
+          organizationId: dbUser.organization.id,
         },
         createdAt: {
           gte: prevStartDate,
@@ -190,15 +187,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's organization and check Premium access
-    const membership = await prisma.userOrganization.findFirst({
-      where: { 
-        userId: user.id,
-        user: { role: 'admin' }
-      },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { organization: true }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization || dbUser.role !== 'admin') {
       return NextResponse.json(
         { error: 'No organization found or not an admin' },
         { status: 404 }
@@ -206,7 +200,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has Premium plan
-    if (!canAccessFeature(membership.organization.stripePriceId, 'hasAds')) {
+    if (!canAccessFeature(dbUser.organization.stripePriceId, 'hasAds')) {
       return NextResponse.json(
         { error: 'Ads management requires Premium plan' },
         { status: 403 }
@@ -226,7 +220,7 @@ export async function POST(request: NextRequest) {
     const adAccount = await prisma.adAccount.findFirst({
       where: {
         id: adAccountId,
-        organizationId: membership.organization.id,
+        organizationId: dbUser.organization.id,
         isActive: true,
       },
     });

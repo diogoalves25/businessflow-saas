@@ -1,3 +1,24 @@
+// S3 functionality is temporarily disabled
+// To enable S3 uploads:
+// 1. Install AWS SDK: npm install @aws-sdk/client-s3
+// 2. Set environment variables: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_S3_BUCKET_NAME
+// 3. Uncomment the code below
+
+export async function uploadToS3(
+  file: Buffer,
+  key: string,
+  contentType: string
+): Promise<string> {
+  console.warn('S3 uploads are currently disabled. Files will not be persisted.');
+  // Return a mock URL
+  return `https://placeholder.s3.amazonaws.com/${key}`;
+}
+
+export async function deleteFromS3(url: string): Promise<void> {
+  console.warn('S3 deletes are currently disabled.');
+}
+
+/*
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 const s3Client = new S3Client({
@@ -49,3 +70,4 @@ export async function deleteFromS3(url: string): Promise<void> {
     // Don't throw - just log the error
   }
 }
+*/

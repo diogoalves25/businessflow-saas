@@ -20,7 +20,7 @@ export default function ChatbotWidget() {
   const [sessionId] = useState(() => `session-${Date.now()}`);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { canAccess } = useSubscription();
-  const isPremium = canAccess('hasAIChat');
+  const isPremium = canAccess('hasAIOptimization');
 
   // Load chat history on mount
   useEffect(() => {

@@ -15,15 +15,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get the user's membership and organization
-    const membership = await prisma.userOrganization.findFirst({
-      where: { userId: user.id },
+    // Get the user's organization
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: {
         organization: true
       }
     });
 
-    if (!membership) {
+    if (!dbUser?.organization) {
       return NextResponse.json(
         { error: 'No organization found' },
         { status: 404 }
@@ -32,23 +32,23 @@ export async function GET(request: NextRequest) {
 
     // Determine current plan based on price ID
     let currentPlan = null;
-    if (membership.organization.stripePriceId) {
+    if (dbUser.organization.stripePriceId) {
       // Map price IDs to plan names
       const priceIdToPlan: Record<string, string> = {
         [process.env.STRIPE_PRICE_STARTER_ID || '']: 'starter',
         [process.env.STRIPE_PRICE_GROWTH_ID || '']: 'growth',
         [process.env.STRIPE_PRICE_PREMIUM_ID || '']: 'premium',
       };
-      currentPlan = priceIdToPlan[membership.organization.stripePriceId] || null;
+      currentPlan = priceIdToPlan[dbUser.organization.stripePriceId] || null;
     }
 
     return NextResponse.json({
-      organizationId: membership.organization.id,
-      organizationName: membership.organization.businessName,
+      organizationId: dbUser.organization.id,
+      organizationName: dbUser.organization.businessName,
       currentPlan,
-      subscriptionStatus: membership.organization.subscriptionStatus,
-      trialEndsAt: membership.organization.trialEndsAt,
-      subscriptionEndsAt: membership.organization.subscriptionEndsAt,
+      subscriptionStatus: dbUser.organization.subscriptionStatus,
+      trialEndsAt: dbUser.organization.trialEndsAt,
+      subscriptionEndsAt: dbUser.organization.subscriptionEndsAt,
     });
   } catch (error) {
     console.error('Organization fetch error:', error);

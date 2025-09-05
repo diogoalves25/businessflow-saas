@@ -248,12 +248,12 @@ export default function ExpensesPage() {
     });
   };
 
-  const exportExpenses = async (format: 'csv' | 'pdf') => {
+  const exportExpenses = async (exportFormat: 'csv' | 'pdf') => {
     try {
       const params = new URLSearchParams({
         from: dateRange.from.toISOString(),
         to: dateRange.to.toISOString(),
-        format
+        format: exportFormat
       });
 
       const response = await fetch(`/api/expenses/export?${params}`);
@@ -262,7 +262,7 @@ export default function ExpensesPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `expenses-${format}-${format(new Date(), 'yyyy-MM-dd')}.${format}`;
+      a.download = `expenses-${exportFormat}-${format(new Date(), 'yyyy-MM-dd')}.${exportFormat}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

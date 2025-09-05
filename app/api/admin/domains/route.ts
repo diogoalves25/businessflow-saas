@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { verifyDomain, checkDomainAvailability, generateDnsInstructions } from '@/lib/domains/dns-verification';
 import { sslManager } from '@/lib/domains/ssl-manager';
+import { canAccessFeature } from '@/src/lib/feature-gating';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,13 +13,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user has premium subscription
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { subscription: true },
+    // Check if organization has white label feature
+    const organization = await prisma.organization.findUnique({
+      where: { id: session.user.organizationId },
     });
 
-    if (user?.subscription?.plan !== 'premium') {
+    if (!organization || !canAccessFeature(organization.stripePriceId || null, 'hasWhiteLabel')) {
       return NextResponse.json({ error: 'Premium subscription required' }, { status: 403 });
     }
 
@@ -60,13 +60,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check premium subscription
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { subscription: true },
+    // Check if organization has white label feature
+    const organization = await prisma.organization.findUnique({
+      where: { id: session.user.organizationId },
     });
 
-    if (user?.subscription?.plan !== 'premium') {
+    if (!organization || !canAccessFeature(organization.stripePriceId || null, 'hasWhiteLabel')) {
       return NextResponse.json({ error: 'Premium subscription required' }, { status: 403 });
     }
 

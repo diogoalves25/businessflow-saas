@@ -14,7 +14,7 @@ import { useBusiness } from '@/src/contexts/BusinessContext';
 
 export default function AdminDashboard() {
   const { organizationId, loading: contextLoading } = useBusiness();
-  const { stats, recentBookings, topTechnicians, revenueData, loading } = useDashboardData(organizationId);
+  const { stats, recentBookings, topTechnicians, revenueData, loading } = useDashboardData(organizationId || undefined);
 
   if (loading || contextLoading) {
     return (

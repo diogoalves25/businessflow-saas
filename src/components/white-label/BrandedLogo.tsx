@@ -10,13 +10,13 @@ interface BrandedLogoProps {
 }
 
 export function BrandedLogo({ className = '', width = 150, height = 40 }: BrandedLogoProps) {
-  const { settings } = useWhiteLabel();
+  const { theme } = useWhiteLabel();
 
-  if (settings?.logoUrl) {
+  if (theme?.logoUrl) {
     return (
       <Image
-        src={settings.logoUrl}
-        alt={settings.brandName}
+        src={theme.logoUrl}
+        alt={theme.brandName}
         width={width}
         height={height}
         className={className}
@@ -28,7 +28,7 @@ export function BrandedLogo({ className = '', width = 150, height = 40 }: Brande
   // Default BusinessFlow logo
   return (
     <div className={`text-2xl font-bold text-primary ${className}`}>
-      {settings?.brandName || 'BusinessFlow'}
+      {theme?.brandName || 'BusinessFlow'}
     </div>
   );
 }

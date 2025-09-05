@@ -103,6 +103,9 @@ export async function POST(request: NextRequest) {
         amount,
         period,
         alertThreshold: alertThreshold || 80,
+        startDate: period === 'monthly' 
+          ? startOfMonth(new Date())
+          : new Date(new Date().getFullYear(), 0, 1),
       },
     });
 
