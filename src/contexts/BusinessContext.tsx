@@ -40,7 +40,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Fetch user's organization
-      const response = await fetch(`/api/users/${user.id}/organization`);
+      const response = await fetch('/api/user/organization');
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -55,9 +55,10 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
       }
 
       const org = await response.json();
-      setBusinessType(org.businessType || '');
-      setBusinessName(org.name || '');
-      setOrganizationId(org.id);
+      // The API returns organizationId and organizationName
+      setBusinessType(''); // TODO: Add businessType to the organization table
+      setBusinessName(org.organizationName || '');
+      setOrganizationId(org.organizationId);
       
     } catch (err) {
       console.error('Error fetching organization:', err);
