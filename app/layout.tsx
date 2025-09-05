@@ -14,15 +14,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Force render without waiting for auth
   return (
     <html lang="en">
       <body className="antialiased">
         <DebugOverlay />
-        <Providers>
+        <div style={{ minHeight: '100vh' }}>
           {children}
-          {/* Temporarily disabled - may be causing loading issues */}
-          {/* <ChatbotWidget /> */}
-        </Providers>
+        </div>
       </body>
     </html>
   );
