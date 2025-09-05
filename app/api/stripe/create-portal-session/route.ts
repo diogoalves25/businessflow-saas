@@ -5,6 +5,14 @@ import { createClient } from '@/src/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if Stripe is configured
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe is not configured. Please set up Stripe API keys.' },
+        { status: 500 }
+      );
+    }
+
     const { organizationId } = await request.json();
 
     // Get the user from Supabase

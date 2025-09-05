@@ -3,12 +3,27 @@ import { stripe } from '@/src/lib/stripe';
 import { prisma } from '@/src/lib/prisma';
 import Stripe from 'stripe';
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if Stripe is configured
+    if (!stripe || !webhookSecret) {
+      return NextResponse.json(
+        { error: 'Stripe is not configured. Please set up Stripe API keys and webhook secret.' },
+        { status: 500 }
+      );
+    }
+
     const body = await request.text();
-    const signature = request.headers.get('stripe-signature')!;
+    const signature = request.headers.get('stripe-signature');
+
+    if (!signature) {
+      return NextResponse.json(
+        { error: 'Missing stripe signature' },
+        { status: 400 }
+      );
+    }
 
     let event: Stripe.Event;
 
