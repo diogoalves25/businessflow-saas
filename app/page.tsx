@@ -51,8 +51,22 @@ const pricingTiers = [
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Add immediate visible test
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <>
+      <div style={{ 
+        position: 'fixed', 
+        bottom: 0, 
+        left: 0, 
+        background: 'green', 
+        color: 'white', 
+        padding: '10px', 
+        zIndex: 9999999,
+        fontSize: '14px'
+      }}>
+        HOME PAGE LOADED
+      </div>
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Navigation */}
       <nav className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -273,5 +287,6 @@ export default function Home() {
         </div>
       </footer>
     </div>
+    </>
   );
 }
