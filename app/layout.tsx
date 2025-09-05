@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ChatbotWidget from "@/components/ChatbotWidget";
 import { Providers } from "./providers-simple";
+import { DebugOverlay } from "@/components/DebugOverlay";
 
 export const metadata: Metadata = {
   title: "BusinessFlow - Modern Service Business Management",
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <DebugOverlay />
         <Providers>
           {children}
           {/* Temporarily disabled - may be causing loading issues */}
