@@ -55,6 +55,13 @@ export function DebugOverlay() {
       <div style={{ marginTop: '5px', fontSize: '10px' }}>
         Body has content: {typeof document !== 'undefined' ? document.body.children.length : 'SSR'}
       </div>
+      <div style={{ marginTop: '5px', fontSize: '10px' }}>
+        {typeof document !== 'undefined' && Array.from(document.body.children).map((child, i) => (
+          <div key={i}>
+            {i}: {child.tagName} {child.className || '(no class)'}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

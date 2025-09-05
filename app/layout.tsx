@@ -19,6 +19,19 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <DebugOverlay />
+        <div style={{ 
+          position: 'fixed', 
+          bottom: '20px', 
+          left: '20px', 
+          background: 'yellow', 
+          color: 'black', 
+          padding: '20px', 
+          zIndex: 99999999,
+          fontSize: '20px',
+          fontWeight: 'bold'
+        }}>
+          APP IS RENDERING!
+        </div>
         <div style={{ minHeight: '100vh' }}>
           {children}
         </div>
