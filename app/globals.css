@@ -152,3 +152,8 @@ textarea::placeholder {
     @apply bg-background text-foreground;
   }
 }
+
+/* Emergency fix: Hide any mystery overlay divs */
+body > div:not([class]):not([id]) {
+  display: none !important;
+}

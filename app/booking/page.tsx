@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Calendar, Clock, Sparkles, Wrench, Wind, Smile, Scissors, Activity, BookOpen, Car, Trees, Utensils } from 'lucide-react';
 import Link from 'next/link';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { useBusiness } from '@/src/contexts/BusinessContext';
+import { useBusiness } from '@/app/providers-simple';
 import { useServicesAPI } from '@/src/hooks/useServicesAPI';
 import { useRouter } from 'next/navigation';
 
