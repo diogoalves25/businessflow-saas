@@ -153,7 +153,3 @@ textarea::placeholder {
   }
 }
 
-/* Emergency fix: Hide mystery overlay divs but not Next.js root */
-body > div:not([class]):not([id]):not(:first-child) {
-  display: none !important;
-}
