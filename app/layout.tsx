@@ -16,6 +16,24 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <script dangerouslySetInnerHTML={{ __html: `
+          // Remove mystery overlay divs
+          if (typeof window !== 'undefined') {
+            const observer = new MutationObserver((mutations) => {
+              mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                  if (node.nodeType === 1 && node.tagName === 'DIV' && 
+                      !node.className && !node.id && 
+                      node.parentNode === document.body) {
+                    console.log('Removing mystery div:', node);
+                    node.remove();
+                  }
+                });
+              });
+            });
+            observer.observe(document.body, { childList: true });
+          }
+        `}} />
         <DebugOverlay />
         <div style={{ 
           position: 'fixed', 
